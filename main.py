@@ -1,6 +1,10 @@
 #        random_sticker = random.choice(stickers_hi)
 #        await bot.send_sticker(message.chat.id, random_sticker)
 #       900865796
+# создать pip freeze > requirements.txt
+# установить pip install -r requirements.txt
+
+
 
 import sqlite3
 import datetime
