@@ -1,0 +1,226 @@
+2025-03-19 15:17:34,734 - Start polling
+2025-03-19 15:17:35,004 - Run polling for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:17:38,939 - Update id=292398312 is handled. Duration 344 ms by bot id=7353449363
+2025-03-19 15:17:40,401 - ёзер DV_r2d2 запрос: start_sos
+2025-03-19 15:17:40,639 - Update id=292398313 is handled. Duration 239 ms by bot id=7353449363
+2025-03-19 15:17:43,691 - Update id=292398314 is not handled. Duration 3 ms by bot id=7353449363
+2025-03-19 15:17:43,691 - Cause exception while process update id=292398314 by bot id=7353449363
+UnsupportedOperation: not readable
+Traceback (most recent call last):
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        observer=observer, update_type=update_type, event=telegram_event, **data
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "c:\Python\Test\main.py", line 233, in admin_plus
+    text = file.read()
+io.UnsupportedOperation: not readable
+2025-03-19 15:19:13,805 - Polling stopped
+2025-03-19 15:19:14,068 - Polling stopped for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:19:17,578 - Start polling
+2025-03-19 15:19:17,884 - Run polling for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:19:19,185 - Update id=292398315 is handled. Duration 328 ms by bot id=7353449363
+2025-03-19 15:19:20,148 - ёзер DV_r2d2 запрос: start_sos
+2025-03-19 15:19:20,529 - Update id=292398316 is handled. Duration 383 ms by bot id=7353449363
+2025-03-19 15:19:22,964 - Update id=292398317 is not handled. Duration 4 ms by bot id=7353449363
+2025-03-19 15:19:22,965 - Cause exception while process update id=292398317 by bot id=7353449363
+UnsupportedOperation: not readable
+Traceback (most recent call last):
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        observer=observer, update_type=update_type, event=telegram_event, **data
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "c:\Python\Test\main.py", line 232, in admin_plus
+    text_sos = file.read()
+io.UnsupportedOperation: not readable
+2025-03-19 15:20:29,552 - Polling stopped
+2025-03-19 15:20:29,811 - Polling stopped for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:20:33,626 - Start polling
+2025-03-19 15:20:33,897 - Run polling for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:20:35,147 - Update id=292398318 is handled. Duration 300 ms by bot id=7353449363
+2025-03-19 15:20:36,813 - ёзер DV_r2d2 запрос: start_sos
+2025-03-19 15:20:37,036 - Update id=292398319 is handled. Duration 225 ms by bot id=7353449363
+2025-03-19 15:20:39,281 - Update id=292398320 is not handled. Duration 3 ms by bot id=7353449363
+2025-03-19 15:20:39,281 - Cause exception while process update id=292398320 by bot id=7353449363
+UnsupportedOperation: not readable
+Traceback (most recent call last):
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        observer=observer, update_type=update_type, event=telegram_event, **data
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python313\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "c:\Python\Test\main.py", line 233, in admin_plus
+    text_sos = file.read()
+io.UnsupportedOperation: not readable
+2025-03-19 15:23:07,977 - Polling stopped
+2025-03-19 15:23:08,234 - Polling stopped for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:26:35,000 - Start polling
+2025-03-19 15:26:35,271 - Run polling for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:26:36,806 - Update id=292398324 is handled. Duration 404 ms by bot id=7353449363
+2025-03-19 15:26:37,700 - ёзер DV_r2d2 запрос: start_sos
+2025-03-19 15:26:38,095 - Update id=292398325 is handled. Duration 395 ms by bot id=7353449363
+2025-03-19 15:26:41,534 - Update id=292398326 is handled. Duration 459 ms by bot id=7353449363
+2025-03-19 15:27:01,424 - Polling stopped
+2025-03-19 15:27:01,686 - Polling stopped for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:27:05,328 - Start polling
+2025-03-19 15:27:05,594 - Run polling for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:27:08,239 - Update id=292398327 is handled. Duration 317 ms by bot id=7353449363
+2025-03-19 15:27:09,371 - ёзер DV_r2d2 запрос: start_sos
+2025-03-19 15:27:09,591 - Update id=292398328 is handled. Duration 220 ms by bot id=7353449363
+2025-03-19 15:27:28,505 - Update id=292398329 is handled. Duration 226 ms by bot id=7353449363
+2025-03-19 15:27:48,814 - Polling stopped
+2025-03-19 15:27:49,068 - Polling stopped for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:28:04,074 - Start polling
+2025-03-19 15:28:04,340 - Run polling for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:28:05,563 - Update id=292398330 is handled. Duration 312 ms by bot id=7353449363
+2025-03-19 15:28:06,546 - ёзер DV_r2d2 запрос: start_sos
+2025-03-19 15:28:07,038 - Update id=292398331 is handled. Duration 493 ms by bot id=7353449363
+2025-03-19 15:28:30,691 - Update id=292398332 is handled. Duration 217 ms by bot id=7353449363
+2025-03-19 15:28:41,917 - ёзер DV_r2d2 запрос: ok
+2025-03-19 15:28:42,108 - Update id=292398333 is handled. Duration 192 ms by bot id=7353449363
+2025-03-19 15:28:43,049 - ёзер DV_r2d2 запрос: start_sos
+2025-03-19 15:28:43,290 - Update id=292398334 is handled. Duration 243 ms by bot id=7353449363
+2025-03-19 15:28:45,669 - Update id=292398335 is handled. Duration 238 ms by bot id=7353449363
+2025-03-19 15:29:01,549 - Polling stopped
+2025-03-19 15:29:01,814 - Polling stopped for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:29:05,544 - Start polling
+2025-03-19 15:29:05,804 - Run polling for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:29:07,595 - Update id=292398336 is handled. Duration 285 ms by bot id=7353449363
+2025-03-19 15:29:08,625 - ёзер DV_r2d2 запрос: start_sos
+2025-03-19 15:29:08,844 - Update id=292398337 is handled. Duration 221 ms by bot id=7353449363
+2025-03-19 15:29:10,995 - Update id=292398338 is handled. Duration 241 ms by bot id=7353449363
+2025-03-19 15:29:20,916 - ёзер DV_r2d2 запрос: ok
+2025-03-19 15:29:21,149 - Update id=292398339 is handled. Duration 234 ms by bot id=7353449363
+2025-03-19 15:48:47,641 - Polling stopped
+2025-03-19 15:48:47,904 - Polling stopped for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:48:51,563 - Start polling
+2025-03-19 15:48:51,812 - Run polling for bot @Charcon_bot id=7353449363 - 'charkon_bot'
+2025-03-19 15:48:54,702 - Update id=292398340 is handled. Duration 306 ms by bot id=7353449363
+2025-03-19 15:48:57,731 - ёзер DV_r2d2 запрос: start_history
+2025-03-19 15:48:57,822 - Update id=292398341 is handled. Duration 93 ms by bot id=7353449363
+2025-03-19 15:49:08,252 - Polling stopped
+2025-03-19 15:49:08,517 - Polling stopped for bot @Charcon_bot id=7353449363 - 'charkon_bot'

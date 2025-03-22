@@ -1,0 +1,10 @@
+stickers_hi = ['CAACAgIAAxkBAAENkt1n2WVDspMpPita9IEXBBxGiCOJ5AACdgsAAj_F0UvqwOVEM0ksBTYE',
+               'CAACAgIAAxkBAAENkt9n2WVZSfbcAAF3jF0S5PTler4UQakAAnkLAALVstFLUszbBl9v4U82BA',
+               'CAACAgIAAxkBAAENkuFn2WV_cr9qvAJoKSt2kIyCu7cz2wAC2woAAoVEyEsDnfjrMdUaUjYE',
+               'CAACAgIAAxkBAAENP5RnytYqmAWaCZUTmFc1BdHBTXvpoAACSwADUomRI8htaM0_6NrrNgQ',
+               'CAACAgQAAxkBAAENkuVn2WXjOhx6sSCECrbixNYZ4EJx2QACSBgAAqbxcR7UGkOq4W6aKDYE',
+               'CAACAgIAAxkBAAENLlpnyD06W7ue6pfpu4Wk22irm1qjqwACAwQAAonq5Qe_UYvN_GC8bzYE',
+               'CAACAgIAAxkBAAENkutn2WYvKK4LkZhZVSYn2FA1OYhh9wACbwQAAonq5QdspvW3p5i3QDYE',
+               'CAACAgIAAxkBAAENku1n2WZpsBCwaLF8SXa7IWm0SZXXFgAC5AgAAhhC7ghbQw1npmBpWjYE',
+               'CAACAgIAAxkBAAENkvFn2WZ5wea9bZ3jkwQMLNY8bMw8VgACzAgAAhhC7giD-uevFcNz7DYE',
+               'CAACAgIAAxkBAAENkvNn2WaiFXhiOoBgTy1OIsvUQsh_oAACQg4AArTDUUprY0R9WxUS2zYE',]
