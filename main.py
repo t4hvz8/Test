@@ -1,9 +1,6 @@
-#        random_sticker = random.choice(stickers_hi)
-#        await bot.send_sticker(message.chat.id, random_sticker)
 #       900865796
 # создать pip freeze > requirements.txt
 # установить pip install -r requirements.txt
-#.row - с новой строки  .add добавляет в строку (по умолчанию 3)
 
 
 
@@ -12,6 +9,7 @@ import sqlite3
 import os
 import asyncio
 import random
+import time
 
 from datetime import datetime, timedelta
 
@@ -67,6 +65,8 @@ class GIVEAWAY(StatesGroup):
     post = State()
     link = State()
     giveaway_end = State()
+    date_end = State()
+    stop_reason = State()
 
 
 
@@ -149,9 +149,9 @@ async def start(message: types.Message):
             con.close()
             link = (f'{giveaway_link}' + '/' + f'{giveaway_msg}')
             current_date = datetime.today()
-            date_obj = datetime.strptime(giveaway_end, "%d.%m.%Y")
+            date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
-            sent_message = await callback_query.message.edit_text (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nСейчас активен розыгрыш в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nСейчас активен розыгрыш в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
             sent_message = await message.answer (f"👋🏻 <i>Привет, {name}!!! 👋🏻\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
@@ -204,7 +204,7 @@ async def adminminus(callback_query: types.CallbackQuery):
 
 
 # Обработчик чтения базы виннеров
-@dp.callback_query(lambda c: c.data.startswith("winners:"))
+@dp.callback_query(lambda c: c.data.startswith("log:"))
 async def winners(callback_query: types.CallbackQuery):
     await callback_query.answer()
     file_path = callback_query.data.split(":", 1)[1]
@@ -217,7 +217,7 @@ async def winners(callback_query: types.CallbackQuery):
     for file in files:
         button_text = file.split(" ", 1)[1]
         button_text = button_text.split(".", 1)[0]
-        board.add(types.InlineKeyboardButton(text=button_text, callback_data=f"winners:{file}"))
+        board.add(types.InlineKeyboardButton(text=button_text, callback_data=f"log:{file}"))
     board.adjust(*[3] * len(files), 1)
     board.row(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
     sent_message = await callback_query.message.edit_text(f"{winner_text}\n--------------------\n<i>Когда производился розыгрыш?\nВыбери дату окончания</i>", parse_mode="HTML", reply_markup=board.as_markup())
@@ -366,28 +366,19 @@ async def start_giveaway(callback_query: types.CallbackQuery, state: FSMContext)
     await state.update_data(link=link_chan)
     await state.set_state(GIVEAWAY.name)
     await state.update_data(name=text)
-    board = InlineKeyboardBuilder()
-    board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-    await state.set_state(GIVEAWAY.post)
-    sent_message = await callback_query.message.edit_text(f'<i>Театр начинается с вешалки, а конкурс - с анонса\nТы решил запустить конкурс в канале <a href="{link_chan}">{text}</a>\nДля этого пришли мне пост, которым ты запустишь конкурс (присылать фото вместе с описанием, форматирование текста поддерживается).\n\n<b>ЖДУ ПОСТ</b></i>', parse_mode="HTML", disable_web_page_preview=True)
+    sent_message = await callback_query.message.edit_text(f'<i>Театр начинается с вешалки, а конкурс - с анонса\nТы решил запустить конкурс в канале <a href="{link_chan}">{text}</a>\nДля этого необходимо будет выбрать дату <b>окончания</b> розыгрыша, а затем мне нужен будет пост, которым ты запустишь конкурс\n\n<b>ВЫБИРАЙ ДАТУ</b></i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=await SimpleCalendar().start_calendar())
     asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
 
 @dp.callback_query(SimpleCalendarCallback.filter())
-async def process_simple_calendar(callback_query: types.CallbackQuery, callback_data: dict):
+async def process_simple_calendar(callback_query: types.CallbackQuery, callback_data: dict, state: FSMContext):
     selected, date = await SimpleCalendar().process_selection(callback_query, callback_data)
     if selected:
-        giveaway_end = date.strftime("%d.%m.%Y")
-        con = sqlite3.connect('data/db/giveaway/giveaway.db')
-        cur = con.cursor()
-        cur.execute('UPDATE giveaways_data SET giveaway_end = ? WHERE giveaway_status = "active"', [giveaway_end])
-        con.commit()
-        con.close()
-        board = InlineKeyboardBuilder()
-        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-        current_date = datetime.now()
-
-        await callback_query.message.edit_text(f'<i>Фиксирую дату окончания: <u>{date.strftime("%d.%m.%Y")}</u>\nРозыгрыш запущен, можно отдыхать</i>', parse_mode="HTML", reply_markup=board.as_markup())
+        giveaway_end = date.strftime("%d_%m_%Y")
+        await state.set_state(GIVEAWAY.date_end)
+        await state.update_data(date_end=giveaway_end)
+        await state.set_state(GIVEAWAY.post)
+        await callback_query.message.edit_text(f'<i>Фиксирую дату окончания: <u>{date.strftime("%d.%m.%Y")}</u>\nТеперь необходимо разобраться с постом.\n<b>Жду сейчас</b> от тебя фотографию с описанием <b><u>(одним постом, жду 10 минут)</u></b>\n</i>', parse_mode="HTML")
 
 
 
@@ -423,7 +414,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             con.close()
             link = (f'{giveaway_link}' + '/' + f'{giveaway_msg}')
             current_date = datetime.today()
-            date_obj = datetime.strptime(giveaway_end, "%d.%m.%Y")
+            date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
             sent_message = await callback_query.message.edit_text (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nСейчас активен розыгрыш в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
@@ -431,6 +422,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             sent_message = await callback_query.message.edit_text(f"👋🏻 <i>Привет, {name}!!! 👋🏻\nВыбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
     
+
     elif data == "start_adminbase":
         con = sqlite3.connect('data/db/role/admin.db')
         cur = con.cursor()
@@ -584,29 +576,80 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
 
     elif data == "giveaway_start":
-        con = sqlite3.connect('data/db/giveaway/chan_data.db')
-        cur = con.cursor()
-        cur.execute("SELECT * FROM channals")
-        rows = cur.fetchall()
-        con.close()
-        board = InlineKeyboardBuilder()
         try:
-            for row in rows:
-                board.add(types.InlineKeyboardButton(text=f"{row[2]}", callback_data=f"start_giveaway:{row[1]}"))
-            board.add(types.InlineKeyboardButton(text="➕Добавить канал➕", callback_data="channal_plus"))
-            board.add(types.InlineKeyboardButton(text="➖Удалить канал➖", callback_data="channal_minus"))
+            con = sqlite3.connect('data/db/giveaway/giveaway.db')
+            cur = con.cursor()
+            cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', ["active"]).fetchone()
+            con.close()
+            board = InlineKeyboardBuilder()
             board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-            board.adjust(*[1] * len(rows), 2, 1)
-            sent_message = await callback_query.message.edit_text(f"<i>Выбирай канал для запуска розыгрыша</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            sent_message = await callback_query.message.edit_text(f"<i>Наркоман чтоле!\nУже есть АКТИВНЫЙ РОЗЫГРЫШ!</i>", parse_mode="HTML", reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
-
         except:
-            board.add(types.InlineKeyboardButton(text="➕Добавить канал➕", callback_data="channal_plus"))
-            board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-            board.adjust(*[1] * len(rows), 1, 1)
-            sent_message = await callback_query.message.edit_text(f"<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
-            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+            con = sqlite3.connect('data/db/giveaway/chan_data.db')
+            cur = con.cursor()
+            cur.execute("SELECT * FROM channals")
+            rows = cur.fetchall()
+            con.close()
+            board = InlineKeyboardBuilder()
+            try:
+                for row in rows:
+                    board.add(types.InlineKeyboardButton(text=f"{row[2]}", callback_data=f"start_giveaway:{row[1]}"))
+                board.add(types.InlineKeyboardButton(text="➕Добавить канал➕", callback_data="channal_plus"))
+                board.add(types.InlineKeyboardButton(text="➖Удалить канал➖", callback_data="channal_minus"))
+                board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+                board.adjust(*[1] * len(rows), 2, 1)
+                sent_message = await callback_query.message.edit_text(f"<i>Выбирай канал для запуска розыгрыша</i>", parse_mode="HTML", reply_markup=board.as_markup())
+                asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+            except:
+                board.add(types.InlineKeyboardButton(text="➕Добавить канал➕", callback_data="channal_plus"))
+                board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+                board.adjust(*[1] * len(rows), 1, 1)
+                sent_message = await callback_query.message.edit_text(f"<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
+                asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
+
+    elif data == "giveaway_stop":
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="✅Да", callback_data="giveaway_stop_choise"))
+        board.add(types.InlineKeyboardButton(text="❌Нет", callback_data="ok"))
+        board.adjust(2)
+        sent_message = await callback_query.message.edit_text("<i>Ты выбрал <b>ОТМЕНИТЬ</b> активный розыгрыш по каким то причинам.\n<b>ДАННАЯ ОПЕРАЦИЯ НЕОБРАТИМА</b>\nПродолжить?</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "giveaway_stop_choise":
+        await state.set_state(GIVEAWAY.stop_reason)
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        sent_message = await callback_query.message.edit_text("<i>Для отмены розыгрыша, необходимо указать причину.\nНапиши, пожалуйста, по какой причине отменяется розыгрыш\n\n<b>ЖДУ</b></i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "giveaway_stop_go":
+        path = 'data/db/giveaway/giveaway.db'
+        reason_data = await state.get_data()
+        reason = reason_data['stop_reason']
+        await state.clear()
+#        try:
+        con = sqlite3.connect('data/db/giveaway/giveaway.db')
+        cur = con.cursor()
+        name_file = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', ["active"]).fetchone())[0]
+        con.close()
+        sqlite3.connect(path).close()
+        await asyncio.sleep(1)
+        os.remove(path)
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        with open(f'data/history/log {name_file}', "a", encoding="utf-8") as f:
+            text = f'<b>Розыгрыш отменил</b> {nick}\n<b>Причина:</b> {reason}'
+            f = f.write(text)
+        sent_message = await callback_query.message.edit_text("<i>Активный розыгрыш отменен\nинформация в историю добавлена</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+#        except:
+#            sent_message = await callback_query.message.edit_text("<i>Не удалось отменить розыгрыш. Пиши в SOS</i>", parse_mode="HTML", reply_markup=board.as_markup())
+#            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+       
 
     elif data == "channal_plus":
         await state.set_state(CHAN.name_chan)
@@ -643,6 +686,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         chan_id = int(giveaway_data['chan_id'])
         chan_link = giveaway_data['link']
         chan_name = giveaway_data['name']
+        date_end = giveaway_data['date_end']
         await state.clear()
         jpg_post = FSInputFile("data/variables/post/start_post.jpg")
         with open('data/variables/post/start_post.txt', "r", encoding="utf-8") as f:
@@ -655,18 +699,34 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         msg_id = msg.message_id
         con = sqlite3.connect('data/db/giveaway/giveaway.db')
         cur = con.cursor()
-        cur.execute(f'INSERT INTO giveaways_data (admin_start, chan_name, chan_id, chan_link, msg_id, giveaway_status) VALUES ("{admin_nick}", "{chan_name}", "{chan_id}", "{chan_link}", "{msg_id}", "active")')
+        cur.execute(f'INSERT INTO giveaways_data (admin_start, chan_name, chan_id, chan_link, msg_id, giveaway_status, giveaway_end) VALUES ("{admin_nick}", "{chan_name}", "{chan_id}", "{chan_link}", "{msg_id}", "active", "{date_end}")')
         con.commit()
         con.close()
         board = InlineKeyboardBuilder()
-        board.add(types.InlineKeyboardButton(text="📆Продолжить📆", callback_data="calendar_start"))
-        sent_message = await callback_query.message.edit_text("<i>Пост улетел, осталось выбрать дату окончания розыгрыша\nЖми кнопку</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        date_end = datetime.strptime(date_end, "%d_%m_%Y")
+        name_file = date_end.strftime("%d_%m_%Y")
+        date_end = date_end.strftime("%d.%m.%Y")
+        with open(f'data/history/log {name_file}.txt', "w", encoding="utf-8") as f:
+            text = f'<b>Дата окончания розыгрыша</b> {date_end}\n<b>Розыгрыш создал</b> {admin_nick}\n'
+            f = f.write(text)
+        sent_message = await callback_query.message.edit_text(f"<i>Пост улетел, оформление закончено, можно отдыхать до {date_end}\nЖми кнопку</i>", parse_mode="HTML", reply_markup=board.as_markup())
         asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
 
     elif data == 'calendar_start':
         await callback_query.message.answer("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar())
 
+
+@dp.message(GIVEAWAY.stop_reason)
+async def stop(message: Message, state: FSMContext):
+    await state.update_data(stop_reason=message.text)
+    board = InlineKeyboardBuilder()
+    board.add(types.InlineKeyboardButton(text="✅Да, я уверен", callback_data="giveaway_stop_go"))
+    board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+    board.adjust(1)
+    sent_message = await message.answer("<i>Причину принял, но спрошу еще раз:\nТочно отменить активный розыгрыш???</i>", parse_mode="HTML", reply_markup=board.as_markup())
+    asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
 # Готовим пост в канал для розыгрыша
 @dp.message(GIVEAWAY.post)
@@ -885,7 +945,7 @@ async def list_directory(message: types.Message, path: str):
     for file in files:
         button_text = file.split(" ", 1)[1]
         button_text = button_text.split(".", 1)[0]
-        board.add(types.InlineKeyboardButton(text=button_text, callback_data=f"winners:{file}"))
+        board.add(types.InlineKeyboardButton(text=button_text, callback_data=f"log:{file}"))
     board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
     board.adjust(*[3] * len(files), 1)
     sent_message = await message.edit_text("<i>Когда производился розыгрыш?\nВыбери дату окончания</i>", parse_mode="HTML", reply_markup=board.as_markup())
