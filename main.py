@@ -208,16 +208,17 @@ async def adminminus(callback_query: types.CallbackQuery):
 async def winners(callback_query: types.CallbackQuery):
     await callback_query.answer()
     file_path = callback_query.data.split(":", 1)[1]
-    file_path = f"{HISTORY_DIR}" + "/" + f"{file_path}"
+    file_path = f"{HISTORY_DIR}" + "/log " + f"{file_path}"
     with open (file_path, 'r', encoding="utf-8") as file:
         winner_text = file.read()
     items = get_sorted_items(HISTORY_DIR)
     board = InlineKeyboardBuilder()
     files = items
     for file in files:
-        button_text = file.split(" ", 1)[1]
+        button_text = (file['name']).split(" ", 1)[1]
+        filename = button_text
         button_text = button_text.split(".", 1)[0]
-        board.add(types.InlineKeyboardButton(text=button_text, callback_data=f"log:{file}"))
+        board.add(types.InlineKeyboardButton(text=button_text, callback_data=f"log:{filename}"))
     board.adjust(*[3] * len(files), 1)
     board.row(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
     sent_message = await callback_query.message.edit_text(f"{winner_text}\n--------------------\n<i>Когда производился розыгрыш?\nВыбери дату окончания</i>", parse_mode="HTML", reply_markup=board.as_markup())
@@ -579,11 +580,11 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         try:
             con = sqlite3.connect('data/db/giveaway/giveaway.db')
             cur = con.cursor()
-            cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', ["active"]).fetchone()
+            exist = (cur.execute('SELECT chan_link FROM giveaways_data WHERE giveaway_status = ?', ["active"]).fetchone())[0]
             con.close()
             board = InlineKeyboardBuilder()
             board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-            sent_message = await callback_query.message.edit_text(f"<i>Наркоман чтоле!\nУже есть АКТИВНЫЙ РОЗЫГРЫШ!</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            sent_message = await callback_query.message.edit_text(f'<i>Наркоман чтоле!\nУже есть АКТИВНЫЙ РОЗЫГРЫШ в <a href="{exist}">канале</a>!</i>', parse_mode="HTML", reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
             con = sqlite3.connect('data/db/giveaway/chan_data.db')
@@ -631,24 +632,25 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         reason_data = await state.get_data()
         reason = reason_data['stop_reason']
         await state.clear()
-#        try:
-        con = sqlite3.connect('data/db/giveaway/giveaway.db')
-        cur = con.cursor()
-        name_file = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', ["active"]).fetchone())[0]
-        con.close()
-        sqlite3.connect(path).close()
-        await asyncio.sleep(1)
-        os.remove(path)
-        board = InlineKeyboardBuilder()
-        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-        with open(f'data/history/log {name_file}', "a", encoding="utf-8") as f:
-            text = f'<b>Розыгрыш отменил</b> {nick}\n<b>Причина:</b> {reason}'
-            f = f.write(text)
-        sent_message = await callback_query.message.edit_text("<i>Активный розыгрыш отменен\nинформация в историю добавлена</i>", parse_mode="HTML", reply_markup=board.as_markup())
-        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
-#        except:
-#            sent_message = await callback_query.message.edit_text("<i>Не удалось отменить розыгрыш. Пиши в SOS</i>", parse_mode="HTML", reply_markup=board.as_markup())
-#            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        try:
+            con = sqlite3.connect('data/db/giveaway/giveaway.db')
+            cur = con.cursor()
+            name_file = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', ["active"]).fetchone())[0]
+            con.close()
+            await asyncio.sleep(3)
+            os.remove(path)
+            board = InlineKeyboardBuilder()
+            board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+            with open(f'data/history/log {name_file}.txt', "a", encoding="utf-8") as f:
+                text = f'<b>Розыгрыш отменил</b> {nick}\n<b>Причина:</b> {reason}'
+                f = f.write(text)
+            sent_message = await callback_query.message.edit_text("<i>Активный розыгрыш отменен\nинформация в историю добавлена</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        except:
+            board = InlineKeyboardBuilder()
+            board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+            sent_message = await callback_query.message.edit_text("<i>Не удалось отменить розыгрыш. Пиши в SOS</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
        
 
     elif data == "channal_plus":
@@ -931,22 +933,43 @@ async def admin_plus(message: Message, state: FSMContext):
 
 # Сортировка в браузере
 def get_sorted_items(path: str):
-    items = os.listdir(path)
-    items_with_time = [(item, os.path.getctime(os.path.join(path, item))) for item in items]
-    # Сортировка по времени создания (от старых к новым)
-    items_with_time.sort(key=lambda x: x[1], reverse=True)
-    return [item[0] for item in items_with_time]
+    files = []
+    for filename in os.listdir(HISTORY_DIR):
+        filepath = os.path.join(HISTORY_DIR, filename)
+        if os.path.isfile(filepath):
+            mtime = os.path.getmtime(filepath)
+            files.append({
+                'name': filename,
+                'path': filepath,
+                'date': datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                'mtime': mtime
+            })
+    
+    # Сортируем по дате изменения (сначала новые)
+    files.sort(key=lambda x: x['mtime'])
+    return files
 
 # Функция для отображения содержимого директории
 async def list_directory(message: types.Message, path: str):
     items = get_sorted_items(HISTORY_DIR)
-    board = InlineKeyboardBuilder()
     files = items
+    MAX_FILES = 12
+    if len(files) > MAX_FILES:
+        # Получаем список файлов для удаления (самые старые)
+        files_to_delete = files[MAX_FILES:]
+        for file in files_to_delete:
+            try:
+                os.remove(file['path'])
+            except Exception as e:
+                print(f"Ошибка при удалении: {e}")
+    files = items
+    board = InlineKeyboardBuilder()
     for file in files:
-        button_text = file.split(" ", 1)[1]
+        button_text = (file['name']).split(" ", 1)[1]
+        filename = button_text
         button_text = button_text.split(".", 1)[0]
-        board.add(types.InlineKeyboardButton(text=button_text, callback_data=f"log:{file}"))
-    board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        board.add(types.InlineKeyboardButton(text=button_text, callback_data=f"log:{filename}"))
+    board.row(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
     board.adjust(*[3] * len(files), 1)
     sent_message = await message.edit_text("<i>Когда производился розыгрыш?\nВыбери дату окончания</i>", parse_mode="HTML", reply_markup=board.as_markup())
     asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
