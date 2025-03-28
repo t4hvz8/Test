@@ -945,6 +945,7 @@ def get_sorted_items(path: str):
                 'mtime': mtime
             })
     
+    
     # Сортируем по дате изменения (сначала новые)
     files.sort(key=lambda x: x['mtime'])
     return files
