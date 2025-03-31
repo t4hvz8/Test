@@ -10,12 +10,16 @@ import os
 import asyncio
 import random
 import time
+import requests
+
+from array import *
 
 from datetime import datetime, timedelta
 
 import logging
 
 from aiogram import Bot, Dispatcher, types
+from aiogram.types import ChatMember
 from aiogram.filters import Command
 from aiogram.types import Message
 
@@ -53,6 +57,7 @@ class ADMINS(StatesGroup):
     link = State()
     desc = State()
     minus = State()
+    generate = State()
 
 class CHAN(StatesGroup):
     name_chan = State()
@@ -67,6 +72,9 @@ class GIVEAWAY(StatesGroup):
     giveaway_end = State()
     date_end = State()
     stop_reason = State()
+    name_file = State()
+    much_win = State()
+    win_numbers = State() 
 
 
 
@@ -117,10 +125,25 @@ con.close()
 
 # Обработчик команды /start
 @dp.message(Command("start"))
-async def start(message: types.Message):
+async def start(message: types.Message, state: FSMContext):
+    tributes = await row_tributes()
+    await state.clear()
     user_id = message.from_user.id
     name = message.chat.first_name
     nick = message.from_user.username
+
+    items = get_sorted_items(HISTORY_DIR)
+    files = items
+    
+    MAX_FILES = 12
+    if len(files) > MAX_FILES:
+        # Получаем список файлов для удаления (самые старые)
+        files_to_delete = files[MAX_FILES:]
+        for file in files_to_delete:
+            try:
+                os.remove(file['path'])
+            except Exception as e:
+                print(f"Ошибка при удалении: {e}")
     
     if is_user_admin(user_id):
         role = role_in_db(user_id)
@@ -133,6 +156,7 @@ async def start(message: types.Message):
         con.commit()
         con.close()
         if role == 'master':
+            board.add(types.InlineKeyboardButton(text="Функции для теста", callback_data="admentest"))
             board.row(types.InlineKeyboardButton(text="Работа с базой админов", callback_data="start_adminbase"))
         board.row(types.InlineKeyboardButton(text="Управление розыгрышем", callback_data="giveaway"))
         board.row(types.InlineKeyboardButton(text="История розыгрышей", callback_data="start_history"))
@@ -157,17 +181,173 @@ async def start(message: types.Message):
             sent_message = await message.answer (f"👋🏻 <i>Привет, {name}!!! 👋🏻\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
     
-    
-    
-    
     else:
-        await message.answer (f"👋🏻 Привет, {name}!!! 👋🏻\nТы не админ и тебе тут делать нечего", parse_mode="HTML")
+        # Если не админ, проверяем наличие реги
+        tributes = await row_tributes()
+        idtg = message.from_user.id
+        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            cur = con.cursor()
+            exist = cur.execute('SELECT 1 FROM tributes WHERE id_tg = ?', [idtg]).fetchone()
+        
+        # Если пользователь зарегистрирован, то проверяем розыгрыш на активность
+        if exist:
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                act = 'active'
+                cur = con.cursor()
+                giveaway_act = cur.execute('SELECT 1 FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone()
+        
+            # Если розыгрыш завершен, проверяем на выигрыш
+            if not giveaway_act:
+                with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                    cur = con.cursor()
+                    you_win = cur.execute('SELECT 1 FROM winners WHERE id_tg = ?', [idtg]).fetchone()
+                
+                # Если выиграл, то присылаем пароль
+                if you_win:
+                    with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                        cur = con.cursor()
+                        name = (cur.execute('SELECT us_name FROM winners WHERE id_tg = ?', [idtg]).fetchone())[0]
+                        password = (cur.execute('SELECT password FROM winners WHERE id_tg = ?', [idtg]).fetchone())[0]
+                    try:
+                        await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nВы победили в розыгрыше от <b><a href="https://firestorm-servers.com/ru">Firestorm</a></b>\nПароль на получение выигрыша 👉🏻 {password} 👈🏻\nСообщите его Aorid или Retmex в дискорде и получите свой приз 😊!</i>', parse_mode="HTML")
+                    except Exception as e:
+                        print(f"Если выиграл, то присылаем пароль: {e}")
+                
+                # Если не выиграл, то в хер его
+                else:
+                    try:
+                        await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nРозыгрыш завершен, удачи в следующий раз 😉</i>', parse_mode="HTML")
+                    except Exception as e:
+                        print(f"Если не выиграл, то в хер его: {e}")
+
+            # Если розыгрыш НЕ завершен, но пользователь зареган
+            else:
+                with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                    cur = con.cursor()
+                    giveaway_end = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
+                current_date = datetime.today()
+                date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
+                delta = (date_obj - current_date).days
+                try:
+                    await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\n🙂 Ты уже зарегистрирован 🙂\n📆 До конца розыгрыша осталось {delta} дней 🕙</i>', parse_mode="HTML")
+                except Exception as e:
+                    print(f"розыгрыш НЕ завершен, но пользователь зареган: {e}")
+
+        # Если реги нет 
+        else:
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                act = 'active'
+                cur = con.cursor()
+                giveaway_act = cur.execute('SELECT 1 FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone()
+                giveaway_end = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+            current_date = datetime.today()
+            date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
+            delta = (date_obj - current_date).days
+            if not nick:
+                nick = "MINUS"
+            else:
+                nick = "@" + nick
+            
+            # Если розыгрыш не активен
+            if not giveaway_act:
+                try:
+                    await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nРозыгрыш завершен\nРегистрация недоступна</i>', parse_mode="HTML")
+                except Exception as e:
+                    print(f"Если розыгрыш не активен: {e}")
+            
+            # Розыгрыш активен, регаем пользователя
+            else:
+                with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                    act = 'active'
+                    cur = con.cursor()
+                    chan_id = (cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+                try:
+                    podpiska = await bot.get_chat_member(chat_id=chan_id, user_id=idtg)
+                    podpiska = podpiska.status
+                    if podpiska in ["member", "administrator", "creator"]:
+                        #Пиздим аватар
+                        user_id = message.from_user.id
+                        user_info = await bot.get_user_profile_photos(user_id, limit=1)
+                    # Проверяем, есть ли у пользователя аватар
+                        if user_info.photos:
+                       # Получаем file_id самого большого размера аватара
+                            file_id = user_info.photos[0][-1].file_id
+                           # Получаем информацию о файле
+                            file_info = await bot.get_file(file_id)
+                           # Скачиваем аватар
+                            file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}"
+                            response = requests.get(file_url)
+                            # Сохраняем аватар в файл
+                            with open(f"data/variables/scr/avatars/{idtg}.jpg", "wb") as avatar_file:
+                                avatar_file.write(response.content)
+                           # Функция для преобразования изображения в бинарный формат
+                            with open(f"data/variables/scr/avatars/{idtg}.jpg", "rb") as file:
+                                file.read()
+                            # Преобразование изображения в бинарный формат
+                            image_path = f'data/variables/scr/avatars/{idtg}.jpg'
+                            ava = convert_image_to_binary(image_path)
+                        else:
+                            with open("data/variables/scr/no_ava.jpg", "rb") as file:
+                                file.read()
+                            image_path = 'data/variables/scr/no_ava.jpg'
+                            ava = convert_image_to_binary(image_path)
+
+                        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                            cur = con.cursor()
+                            cur.execute('INSERT INTO tributes (id_tg, us_nick, us_name, podpis, us_ava) VALUES (?, ?, ?, ?, ?)', (idtg, nick, name, podpiska, ava))
+                        try:
+                            await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nРегистрация выполнена\nДо конца розыгрыша осталось {delta} дней</i>', parse_mode="HTML")
+                            os.remove(f'data/variables/scr/avatars/{idtg}.jpg')
+                        except Exception as e:
+                            print(f"Регистрация выполнена\nДо конца розыгрыша осталось: {e}")
+                        
+                        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                            act = 'active'
+                            cur = con.cursor()
+                            chan_id = int((cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0])
+                            msg_id = int((cur.execute('SELECT msg_id FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0])
+                        board = InlineKeyboardBuilder()
+                        board.add(types.InlineKeyboardButton(text=f"Регистрация ({tributes+1})", url='https://t.me/Charcon_bot'))
+                        try:
+                            await bot.edit_message_reply_markup(chat_id=chan_id, message_id=msg_id, reply_markup=board.as_markup())
+                        except Exception as e:
+                            print(f"Не удалось обновить клавиатуру после реги: {e}")
+
+                    # Пользователь попытался зарегаться, но не подписан на канал
+                    else:
+                        try:
+                            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                                act = 'active'
+                                cur = con.cursor()
+                                chan_link = (cur.execute('SELECT chan_link FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+                                chan_name = (cur.execute('SELECT chan_name FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+                            
+                            await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nВы не подписаны на канал <a href="{chan_link}"> {chan_name}</a> \nРозыгрыш доступен только зарегистрированным пользователям</i>', parse_mode="HTML")
+                        except Exception as e:
+                            print(f"Вы не подписаны на канал 320: {e}")
+                except Exception as e:
+                    print (f"322 строка :{e}")
+                    with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                        act = 'active'
+                        cur = con.cursor()
+                        chan_link = (cur.execute('SELECT chan_link FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+                        chan_name = (cur.execute('SELECT chan_name FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+                    try:
+                        await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nВы не подписаны на канал <a href="{chan_link}"> {chan_name}</a> \nРозыгрыш доступен только зарегистрированным пользователям</i>', parse_mode="HTML")
+                    except Exception as e:
+                        print(f"Вы не подписаны на канал 326: {e}")
+
+
+# Конвертация аватары в бинарный файл
+def convert_image_to_binary(image_path):
+    with open(image_path, 'rb') as file:
+        return file.read()
+
 
 @dp.callback_query(lambda c: c.data == "start_history")
 async def process_browser(callback_query: types.CallbackQuery):
     await callback_query.answer()
     await list_directory(callback_query.message, HISTORY_DIR)
-    await callback_query.answer()
 
 # Обработчик удаление админа
 @dp.callback_query(lambda c: c.data.startswith("adminminus_"))
@@ -329,8 +509,7 @@ async def start_giveaway(callback_query: types.CallbackQuery, state: FSMContext)
                 id_tg VARCHAR (20),
                 us_nick VARCHAR (20),
                 us_name VARCHAR (20),
-                podpis VARCHAR (20),
-                us_ava BLOB
+                podpis VARCHAR (20)
                 )''')  
       
     cur.execute('''
@@ -347,7 +526,7 @@ async def start_giveaway(callback_query: types.CallbackQuery, state: FSMContext)
                 id_tg VARCHAR (20),
                 us_nick VARCHAR (20),
                 us_name VARCHAR (20),
-                podpis VARCHAR (20),
+                password VARCHAR (30),
                 us_ava BLOB
                 )''') 
     
@@ -393,12 +572,27 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
     nick = name
     logging.info(f"Юзер {nick} запрос: {callback_data}")
     data = callback_query.data
+    tributes = await row_tributes()
     await callback_query.answer()
 
     if data == "ok":
         await state.clear()
+        name = callback_query.from_user.first_name
+        items = get_sorted_items(HISTORY_DIR)
+        files = items
+        MAX_FILES = 12
+        if len(files) > MAX_FILES:
+            # Получаем список файлов для удаления (самые старые)
+            files_to_delete = files[MAX_FILES:]
+            for file in files_to_delete:
+                try:
+                    os.remove(file['path'])
+                except Exception as e:
+                    print(f"Ошибка при удалении: {e}")
+
         board = InlineKeyboardBuilder()
         if role  == 'master':
+            board.add(types.InlineKeyboardButton(text="Функции для теста", callback_data="admentest"))
             board.add(types.InlineKeyboardButton(text="Работа с базой админов", callback_data="start_adminbase"))
         board.add(types.InlineKeyboardButton(text="Управление розыгрышем", callback_data="giveaway"))
         board.add(types.InlineKeyboardButton(text="История розыгрышей", callback_data="start_history"))
@@ -570,10 +764,91 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         board.add(types.InlineKeyboardButton(text="Старт нового розыгрыша", callback_data="giveaway_start"))
         board.add(types.InlineKeyboardButton(text="Завершить активный розыгрыш",  callback_data="giveaway_end"))
         board.add(types.InlineKeyboardButton(text="Отменить все активные розыгрыши",  callback_data="giveaway_stop"))
+        board.add(types.InlineKeyboardButton(text="🆘Ручной режим🆘",  callback_data="giveaway_sos"))
         board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
         board.adjust(1)
-        sent_message = await callback_query.message.edit_text(f"<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        sent_message = await callback_query.message.edit_text("<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
         asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "giveaway_sos":
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="Срандомить победителей", callback_data="giveaway_random"))
+        board.add(types.InlineKeyboardButton(text="Просмотр зареганых", callback_data="giveaway_sos_look"))
+        board.add(types.InlineKeyboardButton(text="Отправка сообщения от имени бота",  callback_data="giveaway_sos_send"))
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        board.adjust(1)
+        sent_message = await callback_query.message.edit_text("<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "giveaway_end":
+        try:
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                cur = con.cursor()
+                cur.execute(f"DROP TABLE IF EXISTS check_tributes")
+                con.commit()
+        except Exception as e:
+            print (f'767. Ошибка при удалении check_tributes: {e}')
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="❌Нет, я случайно❌", callback_data="ok"))
+        await state.set_state(GIVEAWAY.much_win)
+        sent_message = await callback_query.message.edit_text("<i>Пора подвести итоги розыгрыша?\n🤔 Мне надо знать, сколько будет победителей.\n <b>Жду число...</b></i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "giveaway_sos_send":
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        sent_message = await callback_query.message.edit_text("<i>Пока не реализовано</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "giveaway_sos_look":
+        try:
+            text = "Зареганные пользователи:\n"
+            with open('data/db/giveaway/giveaway_tributes.txt', "w", encoding="utf-8") as file:
+                f = file.write(text)
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                cur = con.cursor()
+                cur.execute("SELECT * FROM tributes")
+                rows = cur.fetchall()
+            for row in rows:
+                with open('data/db/giveaway/giveaway_tributes.txt', "a", encoding="utf-8") as file:
+                    text = f'IDTG {row[1]}    NICK {row[2]}    NAME {row[3]}\n'
+                    f = file.write(text)
+            with open('data/db/giveaway/giveaway_tributes.txt', "r", encoding="utf-8") as file:
+                text = file.read()
+            max_length: int = 4096
+            lines = text.split("\n")  # Разделяем файл на строки
+            current_message = ""
+            for line in lines:
+                # Если добавление новой строки не превысит лимит
+                if len(current_message) + len(line) + 1 <= max_length:  # +1 учитывает символ '\n'
+                    current_message += line + "\n"
+                else:
+                    # Если текущее сообщение не пустое, отправляем его
+                    if current_message.strip():
+                        try:
+                            sent_message = await callback_query.message.answer(current_message.strip(), parse_mode="HTML")
+                            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+                        except Exception as e:
+                            print(f"Ошибка отправки: {e}")
+                    current_message = line + "\n"  # Начинаем новое сообщение с текущей строки
+
+            # Отправляем остаток, если он есть
+            if current_message.strip():
+                sent_message = await callback_query.message.answer(current_message.strip(), parse_mode="HTML")
+                asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+            board = InlineKeyboardBuilder()
+            board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+            sent_message = await callback_query.message.answer("Вот все зареганные пользователи без проверки на подписку", parse_mode="HTML", reply_markup=board.as_markup())
+            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        except Exception as e:
+            board = InlineKeyboardBuilder()
+            board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+            sent_message = await callback_query.message.edit_text(f"<i>Возникла ошибка: {e}\n--------------\nПопробуй еще раз, либо пиши в SOS</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
 
     elif data == "giveaway_start":
@@ -620,6 +895,12 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
 
     elif data == "giveaway_stop_choise":
+        con = sqlite3.connect('data/db/giveaway/giveaway.db')
+        cur = con.cursor()
+        name_file = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', ["active"]).fetchone())[0]
+        con.close()
+        await state.set_state(GIVEAWAY.name_file)
+        await state.update_data(name_file=name_file)
         await state.set_state(GIVEAWAY.stop_reason)
         board = InlineKeyboardBuilder()
         board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
@@ -631,13 +912,9 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         path = 'data/db/giveaway/giveaway.db'
         reason_data = await state.get_data()
         reason = reason_data['stop_reason']
+        name_file = reason_data['name_file']
         await state.clear()
         try:
-            con = sqlite3.connect('data/db/giveaway/giveaway.db')
-            cur = con.cursor()
-            name_file = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', ["active"]).fetchone())[0]
-            con.close()
-            await asyncio.sleep(3)
             os.remove(path)
             board = InlineKeyboardBuilder()
             board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
@@ -652,6 +929,159 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             sent_message = await callback_query.message.edit_text("<i>Не удалось отменить розыгрыш. Пиши в SOS</i>", parse_mode="HTML", reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
        
+
+    elif data == "giveaway_check_podpis":
+        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            cur = con.cursor()
+            cur.execute('''
+            CREATE TABLE IF NOT EXISTS check_tributes(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    id_tg VARCHAR (20),
+                    us_nick VARCHAR (20),
+                    us_name VARCHAR (20),
+                    podpis VARCHAR (20)
+                    )''')  
+            con.commit()
+        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            act = 'active'
+            cur = con.cursor()
+            chan_id = (cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+            cur.execute("SELECT id, id_tg, us_nick, us_name FROM tributes")
+            rows = cur.fetchall()
+        for row in rows:
+            await callback_query.message.edit_text(f"<i>Запускаем проверку участников\nПроверяем {row[0]} из {tributes}</i>", parse_mode="HTML")
+            podpiska = await bot.get_chat_member(chat_id=chan_id, user_id=row[1])
+            podpiska = podpiska.status
+            if podpiska in ["member", "administrator", "creator"]:
+                if not row[2]:
+                    with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                        cur = con.cursor()
+                        cur.execute(f'INSERT INTO loser (id_tg, us_name, reason) VALUES ("{row[1]}", "{row[3]}", "отсутствует тег")')
+                        con.commit()
+                else:
+                    with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                        cur = con.cursor()
+                        cur.execute(f'INSERT INTO check_tributes (id_tg, us_nick, us_name, podpis) VALUES ("{row[1]}", "{row[2]}", "{row[3]}", "{podpiska}")')
+                        con.commit()
+            else: 
+                with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                    cur = con.cursor()
+                    cur.execute(f'INSERT INTO loser (id_tg, us_name, reason) VALUES ("{row[1]}", "{row[3]}", "отписался")')
+                    con.commit()
+        act = 'active'
+        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            cur = con.cursor()
+            result = int((cur.execute('SELECT COUNT (*) from check_tributes').fetchone())[0])
+        itogo = int(tributes) - result
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="Срандомить победителей", callback_data="giveaway_random"))
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        board.adjust(1)
+        await callback_query.message.answer(f"<i>Отсеялось {itogo} участников, причину можно будет увидеть в логах после рандома.</i>", parse_mode="HTML", reply_markup=board.as_markup())
+       
+
+    elif data == "giveaway_random":
+        act = "active"
+        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            cur = con.cursor()
+            all = int((cur.execute('SELECT COUNT (*) from check_tributes').fetchone())[0])
+            much_win = int((cur.execute('SELECT giveaway_much_win FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0])
+        wins_number = random.sample(range(1, all+1), much_win)
+        result = "Нарандомил:\n"
+        i=0
+        await state.set_state(GIVEAWAY.win_numbers)
+        await state.update_data(win_numbers=wins_number)
+        for winner in wins_number:
+            i = i + 1
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                cur = con.cursor()
+                win_nick = (cur.execute('SELECT us_nick FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
+                win_name = (cur.execute('SELECT us_name FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
+            result += f"{i}) Ник - {win_nick}    Имя - {win_name}\n"
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="✅Финалим", callback_data="giveaway_finish"))
+        board.add(types.InlineKeyboardButton(text="❌Перерандом", callback_data="giveaway_random"))
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        board.adjust(2, 1)
+        await callback_query.message.edit_text(result, parse_mode="HTML", reply_markup=board.as_markup())
+
+
+    elif data == "giveaway_finish":
+        act = "active"
+        text = f"<b>Барабан крутил</b> {nick}\n<b>Победители :</b>\n"
+        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            cur = con.cursor()
+            win_date = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+        #with open (f'data/history/log {win_date}', "a", encoding="utf-8") as file:
+        #    file.write(text)
+        giveaway_data = await state.get_data()
+        wins_number = giveaway_data['win_numbers']
+        await state.clear()
+        act = "active"
+        i = 0
+        for winner in wins_number:
+            i = i + 1
+            await asyncio.sleep(1)
+            password = ''
+            for x in range(10): #Количество символов (10)
+                password = password + random.choice(list('1234567890abcdefghigklmnopqrstuvyxwzABCDEFGHIGKLMNOPQRSTUVYXWZ!@#$%^&*()'))
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                cur = con.cursor()
+                win_idtg = (cur.execute('SELECT id_tg FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
+                win_nick = (cur.execute('SELECT us_nick FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
+                win_name = (cur.execute('SELECT us_name FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
+                idtg = int(win_idtg)
+                ava = (cur.execute('SELECT us_ava FROM tributes WHERE id_tg = ?', [idtg]).fetchone())[0]
+                cur.execute('INSERT INTO winners (id_tg, us_nick, us_name, password, us_ava) VALUES (?, ?, ?, ?, ?)', (win_idtg, win_nick, win_name, password, ava))
+                con.commit()
+            idtg = int(win_idtg)
+            text += f"{i}) Ник - {win_nick}, Имя - {win_name}, Пароль - {password}\n"
+            #with open (f'data/history/log {win_date}.txt', "a", encoding="utf-8") as file:
+            #    file.write(text)
+            try:
+                await bot.send_message(idtg, f"<i>Привет, {win_name}!\nВы победили в розыгрыше от Firestorm.\nПароль на получение выигрыша</i>\n👉🏻 <b>{password}</b> 👈🏻\n<i>Сообщите его <u>Aorid</u> или <u>Retmex</u> в дискорде и получите свой приз!</i>", parse_mode="HTML")
+                text += "сообщение с паролем отправлено\n"
+                #with open (f'data/history/log {win_date}', "a", encoding="utf-8") as file:
+                #    file.write(text)
+            except Exception as e:
+                text += f"сообщение с паролем не отправлено. Ошибка {e}\n"
+        with open (f'data/history/log {win_date}', "a", encoding="utf-8") as file:
+            file.write(text)
+        try:
+            loser_text = '<b>Лузера:</b>\n'
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                cur = con.cursor()
+                cur.execute("SELECT * FROM loser")
+                rows = cur.fetchall()
+
+            for row in rows:
+                loser_text += f'{row[0]}) <b>Idtg</b> - {row[1]}, <b>name</b> - {row[2]}\n<b>Причина</b> - {row[3]}\n'
+            with open (f'data/history/log {win_date}.txt', "a", encoding="utf-8") as file:
+                file.write(loser_text)
+        except Exception as e:
+            await callback_query.message.answer(f"<i>Не удалось залогировать базу лузеров\nОшибка {e}</i>", parse_mode="HTML")
+        
+        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            cur = con.cursor()
+            cur.execute("DROP TABLE IF EXISTS check_tributes")
+            cur.execute("DROP TABLE IF EXISTS giveaways_data")
+            cur.execute("DROP TABLE IF EXISTS loser")
+            cur.execute("DROP TABLE IF EXISTS tributes")
+            con.commit()
+
+        with open('data/db/giveaway/giveaway.db', "rb") as file:
+            with open('data/db/giveaway/winners.db', "wb") as new_file:
+                new_file.write(file.read())
+        try:
+            os.remove('data/db/giveaway/giveaway.db')
+        except Exception as e:
+            await callback_query.message.answer(f"<i>Ошибка при отчистки базы: {e}</i>", parse_mode="HTML")
+
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        await callback_query.message.answer(f"<i>Отправка сообщений завершена\nИстория розыгрыша записана\nРозыгрыш полностью завершен</i>", parse_mode="HTML", reply_markup=board.as_markup())
+
+
 
     elif data == "channal_plus":
         await state.set_state(CHAN.name_chan)
@@ -720,6 +1150,99 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         await callback_query.message.answer("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar())
 
 
+    elif data == 'admentest':
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="Сгенерировать базу участников", callback_data="admentest_bd"))
+        board.add(types.InlineKeyboardButton(text="Ренейм", callback_data="admentest_rename"))
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        board.adjust(1)
+        sent_message = await callback_query.message.edit_text("<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == 'admentest_bd':
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        board.adjust(1)
+        await state.set_state(ADMINS.generate)
+        sent_message = await callback_query.message.edit_text("<i>ВВеди число участников, которых ты хочешь сгененировать.\n\n<b>Жду...</b></i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "admentest_rename":
+        with open('data/db/giveaway/giveaway.db', "rb") as file:
+            with open('data/db/giveaway/winners.db', "wb") as new_file:
+                new_file.write(file.read())
+
+
+
+
+
+
+# Определение количества победителей
+@dp.message(GIVEAWAY.much_win)
+async def much_win(message: Message, state: FSMContext):
+    await state.update_data(much_win=message.text)
+    win_data = await state.get_data()
+    print (win_data['much_win'])
+    await state.clear()
+    try:
+        much_win = int(win_data['much_win'])
+        print (much_win)
+        act = 'active'
+        if much_win > 0:
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                cur = con.cursor()
+                cur.execute(f'UPDATE giveaways_data SET giveaway_much_win = ? WHERE giveaway_status = "active" ', [much_win])
+                con.commit()
+            board = InlineKeyboardBuilder()
+            board.add(types.InlineKeyboardButton(text="✅Далее", callback_data="giveaway_check_podpis"))
+            board.add(types.InlineKeyboardButton(text="❌Передумал", callback_data="ok"))
+            sent_message = await message.answer(f"<i>👌 Победителей будет <u>{much_win}</u>\nДалее надо осеять тех кто отписался и тех, кого нельзя тегнуть и после этого произойдет рандом.\nЖми далее</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        else:
+            await state.set_state(GIVEAWAY.much_win)
+            board = InlineKeyboardBuilder()
+            board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+            sent_message = await message.answer(f"<i><b>Как ты себе представляешь {much_win} победителей??\nВводи коректное ЦЕЛОЕ число, или жми отмену</b></i>", parse_mode="HTML", reply_markup=board.as_markup())
+            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+    except Exception as e:
+        await state.set_state(GIVEAWAY.much_win)
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        sent_message = await message.answer(f"<i><b>Шуточки за 300??</b>\nВводи коректное ЦЕЛОЕ число, или жми отмену</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+
+# Разбивка сообщения, максимум 4096 знаков
+async def split_message(text: str, max_length: int = 4096) -> list[str]:
+    return [text[i:i + max_length] for i in range(0, len(text), max_length)]
+
+
+# Генерация базы участников
+@dp.message(ADMINS.generate)
+async def generate_base(message: Message, state: FSMContext):
+    await state.update_data(generate=message.text)
+    generate_data = await state.get_data()
+    generate = int(generate_data['generate'])
+    await state.clear()
+    idtg = ''
+    for gen in range(1, generate+1):
+        idtg = ""
+        for x in range(10): #Количество символов (10)
+            idtg = idtg + random.choice(list('1234567890'))
+        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            cur = con.cursor()
+            cur.execute(f'INSERT INTO tributes (id_tg, us_nick, us_name) VALUES ("{idtg}", "nick_{gen}", "name_{gen}")')
+            con.commit()
+    board = InlineKeyboardBuilder()
+    board.add(types.InlineKeyboardButton(text="Проверить базу", callback_data="giveaway_sos_look"))
+    board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+    board.adjust(1)
+    sent_message = await message.answer("<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
+    asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        
 @dp.message(GIVEAWAY.stop_reason)
 async def stop(message: Message, state: FSMContext):
     await state.update_data(stop_reason=message.text)
@@ -950,6 +1473,7 @@ def get_sorted_items(path: str):
     files.sort(key=lambda x: x['mtime'])
     return files
 
+
 # Функция для отображения содержимого директории
 async def list_directory(message: types.Message, path: str):
     items = get_sorted_items(HISTORY_DIR)
@@ -975,6 +1499,18 @@ async def list_directory(message: types.Message, path: str):
     sent_message = await message.edit_text("<i>Когда производился розыгрыш?\nВыбери дату окончания</i>", parse_mode="HTML", reply_markup=board.as_markup())
     asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
+
+# Количество трибутов
+async def row_tributes():
+    try:
+        path_db = 'data/db/giveaway/giveaway.db'
+        with sqlite3.connect(path_db) as con:
+            cur = con.cursor()
+            result = (cur.execute('SELECT COUNT (*) from tributes').fetchone())[0]
+        return result
+    except:
+        result = 0
+        return result
 
 # Проверка админ/юзер
 def is_user_admin(user_id: int):
