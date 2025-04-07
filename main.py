@@ -12,6 +12,7 @@ import random
 import time
 import requests
 
+from bs4 import BeautifulSoup
 
 from array import *
 
@@ -77,6 +78,10 @@ class GIVEAWAY(StatesGroup):
     much_win = State()
     win_numbers = State() 
 
+class manual_send(StatesGroup):
+    idtg = State()
+    name = State()
+    password = State()
 
 
 
@@ -162,6 +167,39 @@ async def start(message: types.Message, state: FSMContext):
         cur.execute(f'UPDATE admins SET nick = ? wHERE idtg = {user_id}', [nick])
         con.commit()
         con.close()
+        
+#добавил 29/01 проверяем срок действия
+        response = requests.get(
+            'https://www.pythonanywhere.com/api/v0/user/{username}/webapps/'.format(
+            username=username_app
+            ),
+            headers={'Authorization': 'Token {token}'.format(token=token_app)}
+        )
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'lxml').text
+            data = response.json()
+            expiry_date = data[0]['expiry']
+            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
+            time_now = (datetime.today()).date()
+            exp = (time_web - time_now).days
+
+
+# для проверки таска            
+#            response = requests.get(
+#                'https://www.pythonanywhere.com/api/v0/user/{username}/schedule/'.format(
+#                username=username_app
+#                ),
+#                headers={'Authorization': 'Token {token}'.format(token=token_app)}
+#            )
+#            soup = BeautifulSoup(response.text, 'lxml').text
+#            data = response.json()
+#            expiry_date = data[0]['expiry']
+#            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
+#            time_now = datetime.today()
+#            task_expiry = (time_web - time_now).days
+        else:
+            exp = 'не удалось обновить'
+
         if role == 'master':
             board.add(types.InlineKeyboardButton(text="Функции для теста", callback_data="admentest"))
             board.row(types.InlineKeyboardButton(text="Работа с базой админов", callback_data="start_adminbase"))
@@ -181,10 +219,10 @@ async def start(message: types.Message, state: FSMContext):
             current_date = datetime.today()
             date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
-            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nСейчас активен розыгрыш в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nСейчас активен розыгрыш в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
-            sent_message = await message.answer (f"👋🏻 <i>Привет, {name}!!! 👋🏻\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            sent_message = await message.answer (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
     
     else:
@@ -216,7 +254,7 @@ async def start(message: types.Message, state: FSMContext):
                     board.add(types.InlineKeyboardButton(text="Посмотреть итог розыгрыша", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
                     try:
 
-                        await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nВы победили в розыгрыше от <b><a href="https://firestorm-servers.com/ru">Firestorm</a></b>\nПароль на получение выигрыша \n👉🏻 {password} 👈🏻\nСообщите его Aorid или Retmex в дискорде\nи получите свой приз 😊!</i>', disable_web_page_preview=True, parse_mode="HTML", reply_markup=board.as_markup())
+                        await message.answer (f'<i> Приветствую, {name}!!! 👋🏻\nВы победили в розыгрыше от <b><a href="https://firestorm-servers.com/ru">Firestorm</a></b> 🥳\nПароль для получение выигрыша\n👉🏻 {password} 👈🏻\nСообщите его в личные сообщения дискорд <u>Aorid</u> либо <u>Retmex</u> и получите свой приз 🏆 !</i>', disable_web_page_preview=True, parse_mode="HTML", reply_markup=board.as_markup())
                     except Exception as e:
                         print(f"Не удалось выслать пароль победителю, ошибка: {e}")
                 
@@ -225,7 +263,7 @@ async def start(message: types.Message, state: FSMContext):
                     try:
                         board = InlineKeyboardBuilder()
                         board.add(types.InlineKeyboardButton(text="Посмотреть итог розыгрыша", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
-                        await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nРозыгрыш завершен, удачи в следующий раз 😉</i>', parse_mode="HTML", reply_markup=board.as_markup())
+                        await message.answer (f'<i> Приветствую, {name}! 👋🏻\nРозыгрыш завершен, пусть удача Вам улыбнется в следующий раз 😉 </i>', parse_mode="HTML", reply_markup=board.as_markup())
                     except Exception as e:
                         print(f"Если не выиграл, то в хер его: {e}")
 
@@ -238,7 +276,7 @@ async def start(message: types.Message, state: FSMContext):
                 date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
                 delta = (date_obj - current_date).days
                 try:
-                    await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\n🙂 Ты уже зарегистрирован 🙂\n📆 До конца розыгрыша осталось {delta} дней 🕙</i>', parse_mode="HTML")
+                    await message.answer (f'<i> Приветствую, {name}! 👋🏻\nВы уже зарегистрированы 😉\nДо конца розыгрыша осталось {delta} дней</i> 🗓️ ', parse_mode="HTML")
                 except Exception as e:
                     print(f"розыгрыш НЕ завершен, но пользователь зареган: {e}")
 
@@ -261,8 +299,8 @@ async def start(message: types.Message, state: FSMContext):
             if not giveaway_act:
                 try:
                     board = InlineKeyboardBuilder()
-                    board.add(types.InlineKeyboardButton(text="Посмотреть итог розыгрыша", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
-                    await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nРозыгрыш завершен\nРегистрация недоступна\nРезультат проведенного розыгрыша можно посмотреть, нажав на кнопку ниже</i>', parse_mode="HTML", reply_markup=board.as_markup())
+                    board.add(types.InlineKeyboardButton(text="Итог розыгрыша", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
+                    await message.answer (f'<i>👋🏻 Приветствую, {name}! 👋🏻\nРозыгрыш завершен ✅\nРегистрация недоступна ❌\nРезультат проведенного розыгрыша можно посмотреть, нажав на кнопку ниже</i> 👇', parse_mode="HTML", reply_markup=board.as_markup())
                 except Exception as e:
                     print(f"Розыгрыш не активен, сообщение не отправилось: {e}")
             
@@ -307,7 +345,7 @@ async def start(message: types.Message, state: FSMContext):
                             cur = con.cursor()
                             cur.execute('INSERT INTO tributes (id_tg, us_nick, us_name, podpis, us_ava) VALUES (?, ?, ?, ?, ?)', (idtg, nick, name, podpiska, ava))
                         try:
-                            await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nРегистрация выполнена\nДо конца розыгрыша осталось {delta} дней</i>', parse_mode="HTML")
+                            await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nРегистрация выполнена✅\nДо конца розыгрыша осталось {delta} дней 📆</i>', parse_mode="HTML")
                             os.remove(f'data/variables/scr/avatars/{idtg}.jpg')
                         except Exception as e:
                             print(f"Регистрация выполнена\nДо конца розыгрыша осталось: {e}")
@@ -333,7 +371,7 @@ async def start(message: types.Message, state: FSMContext):
                                 chan_link = (cur.execute('SELECT chan_link FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
                                 chan_name = (cur.execute('SELECT chan_name FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
                             
-                            await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nВы не подписаны на канал <a href="{chan_link}"> {chan_name}</a> \nРозыгрыш доступен только зарегистрированным пользователям</i>', parse_mode="HTML")
+                            await message.answer (f'<i> Приветствую, {name}! 👋🏻\nК сожалению, Вы не подписаны на канал <a href="{chan_link}"> {chan_name}</a>  😟</i>', parse_mode="HTML")
                         except Exception as e:
                             print(f"Вы не подписаны на канал 320: {e}")
                 except Exception as e:
@@ -344,7 +382,7 @@ async def start(message: types.Message, state: FSMContext):
                         chan_link = (cur.execute('SELECT chan_link FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
                         chan_name = (cur.execute('SELECT chan_name FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
                     try:
-                        await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nВы не подписаны на канал <a href="{chan_link}"> {chan_name}</a> \nРозыгрыш доступен только зарегистрированным пользователям</i>', parse_mode="HTML")
+                        await message.answer (f'<i> Приветствую, {name}! 👋🏻\nК сожалению, Вы не подписаны на канал <a href="{chan_link}"> {chan_name}</a>  😟</i>', parse_mode="HTML")
                     except Exception as e:
                         print(f"Вы не подписаны на канал 326: {e}")
 
@@ -598,6 +636,37 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                     os.remove(file['path'])
                 except Exception as e:
                     print(f"Ошибка при удалении: {e}")
+        response = requests.get(
+            'https://www.pythonanywhere.com/api/v0/user/{username}/webapps/'.format(
+            username=username_app
+            ),
+            headers={'Authorization': 'Token {token}'.format(token=token_app)}
+        )
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'lxml').text
+            data = response.json()
+            expiry_date = data[0]['expiry']
+            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
+            time_now = (datetime.today()).date()
+            exp = (time_web - time_now).days
+
+
+# для проверки таска            
+#            response = requests.get(
+#                'https://www.pythonanywhere.com/api/v0/user/{username}/schedule/'.format(
+#                username=username_app
+#                ),
+#                headers={'Authorization': 'Token {token}'.format(token=token_app)}
+#            )
+#            soup = BeautifulSoup(response.text, 'lxml').text
+#            data = response.json()
+#            expiry_date = data[0]['expiry']
+#            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
+#            time_now = datetime.today()
+#            task_expiry = (time_web - time_now).days
+        else:
+            exp = 'не удалось обновить'
+        
 
         board = InlineKeyboardBuilder()
         if role  == 'master':
@@ -611,18 +680,21 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         try:
             with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                 cur = con.cursor()
+                
                 giveaway_link = (cur.execute('SELECT chan_link FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
                 giveaway_name = (cur.execute('SELECT chan_name FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
                 giveaway_msg = (cur.execute('SELECT msg_id FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
                 giveaway_end = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
+                number = int((cur.execute('SELECT COUNT (*) from giveaways_data').fetchone())[0])
+
             link = (f'{giveaway_link}' + '/' + f'{giveaway_msg}')
             current_date = datetime.today()
             date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
-            sent_message = await callback_query.message.edit_text (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nСейчас активен розыгрыш в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            sent_message = await callback_query.message.edit_text (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nАктивен озыгрыш №{number}\nРозыгрыш проводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
-            sent_message = await callback_query.message.edit_text(f"👋🏻 <i>Привет, {name}!!! 👋🏻\nВыбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            sent_message = await callback_query.message.edit_text (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
     
 
@@ -773,10 +845,10 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             cur = con.cursor()
             act = "active"
             try:
-                name_file = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+                exsist = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
             except:
-                name_file = None
-        if name_file:
+                exsist = None
+        if exsist:
             board.add(types.InlineKeyboardButton(text="🏁Завершить активный розыгрыш🏁",  callback_data="giveaway_end"))
         else:
             board.add(types.InlineKeyboardButton(text="▶️ Старт нового розыгрыша", callback_data="giveaway_start"))
@@ -816,16 +888,50 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
     elif data == "giveaway_sos_send":
         board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="У меня есть эти данные", callback_data="giveaway_manual_send"))
+        board.add(types.InlineKeyboardButton(text="Просмотр зареганых", callback_data="giveaway_sos_look"))
         board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-        sent_message = await callback_query.message.edit_text("<i>Пока не реализовано</i>", parse_mode="HTML", reply_markup=board.as_markup())
+        board.adjust(1)
+        sent_message = await callback_query.message.edit_text("<i>Чтобы отправить сообщение вручную от имени бота мне необходимо:\n<b>idtg</b>\n<b>Name</b>\n<b>Password</b>\nЭти данные можно найти, просмотрев зареганных пользователей, а пароль придется срандомить</i>", parse_mode="HTML", reply_markup=board.as_markup())
         asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "giveaway_manual_send":
+        await state.set_state(manual_send.idtg)
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        sent_message = await callback_query.message.edit_text("<i>Жду ввода <b>IDTG</b></i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+    elif data == "manual_send_go":
+        manual_data = await state.get_data()
+        idtg = manual_data['idtg']
+        await state.clear()
+        with open(f'data/variables/text/manual_send.txt', "r", encoding="utf-8") as file:
+            text = file.read()
+        try:
+            await bot.send_message(chat_id = idtg, text = text, parse_mode="HTML", disable_web_page_preview=True)
+            board = InlineKeyboardBuilder()
+            board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+            sent_message = await callback_query.message.edit_text("<i>Сообщение отправлено</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        except Exception as e:
+            board = InlineKeyboardBuilder()
+            board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+            sent_message = await callback_query.message.edit_text(f"<i>Ошибка отправки сообщения пользователю:</i>\n{e}", parse_mode="HTML", reply_markup=board.as_markup())
+            asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+
+
+
+
 
 
     elif data == "giveaway_sos_look":
         try:
             text = "Зареганные пользователи:\n"
             with open('data/db/giveaway/giveaway_tributes.txt', "w", encoding="utf-8") as file:
-                f = file.write(text)
+                file.write(text)
             with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                 cur = con.cursor()
                 cur.execute("SELECT * FROM tributes")
@@ -833,7 +939,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             for row in rows:
                 with open('data/db/giveaway/giveaway_tributes.txt', "a", encoding="utf-8") as file:
                     text = f'IDTG {row[1]}    NICK {row[2]}    NAME {row[3]}\n'
-                    f = file.write(text)
+                    file.write(text)
             with open('data/db/giveaway/giveaway_tributes.txt', "r", encoding="utf-8") as file:
                 text = file.read()
             max_length: int = 4096
@@ -1135,12 +1241,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             file_content = file.read()
         response = requests.post(url, headers=headers, files={"content": file_content})
 
-       
-
-
-        
-
-
 
     elif data == "channal_plus":
         await state.set_state(CHAN.name_chan)
@@ -1201,8 +1301,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         sent_message = await callback_query.message.edit_text(f"<i>Пост улетел, оформление закончено, можно отдыхать до {date_end}\nЖми кнопку</i>", parse_mode="HTML", reply_markup=board.as_markup())
         asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
-        
-
 
     elif data == 'calendar_start':
         await callback_query.message.answer("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar())
@@ -1233,6 +1331,39 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
 
 
+# Ручная отправка сообщения пользователю
+@dp.message(manual_send.idtg)
+async def manual_send_idtg(message: Message, state: FSMContext):
+    await state.update_data(idtg=message.text)
+    await message.answer ("<i>Теперь вводи Name</i>", parse_mode="HTML")
+    await state.set_state(manual_send.name)
+@dp.message(manual_send.name)
+async def manual_send_name(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await message.answer ("<i>Теперь вводи Password</i>", parse_mode="HTML")
+    await state.set_state(manual_send.password)
+@dp.message(manual_send.password)
+async def manual_send_name(message: Message, state: FSMContext):
+    await state.update_data(password=message.text)
+    manual_data = await state.get_data()
+    
+    try:
+        name = manual_data['name']
+        password = manual_data['password']
+        board = InlineKeyboardBuilder()
+        with open(f'data/variables/text/manual_send.txt', "w", encoding="utf-8") as file:
+            text = f'<i>Приветствую, {name}!!! 👋🏻\nВы победили в розыгрыше от <b><a href="https://firestorm-servers.com/ru">Firestorm</a></b> 🥳\nПароль для получение выигрыша \n👉🏻 {password} 👈🏻\nСообщите его в личные сообщения дискорд <u>Aorid</u> либо <u>Retmex</u> и получите свой приз 🏆 !</i>'
+            file.write(text)
+        board.add(types.InlineKeyboardButton(text="✅Отправляем✅", callback_data="manual_send_go"))
+        board.add(types.InlineKeyboardButton(text="↪️Отмена↩️", callback_data="ok"))
+        board.adjust(1)
+        sent_message = await message.answer (f'<i>Проверка сообщения перед отправкой:\nПриветствую, {name}!!! 👋🏻\nВы победили в розыгрыше от <b><a href="https://firestorm-servers.com/ru">Firestorm</a></b> 🥳\nПароль для получение выигрыша \n👉🏻 {password} 👈🏻\nСообщите его в личные сообщения дискорд <u>Aorid</u> либо <u>Retmex</u> и получите свой приз 🏆 !</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+    except:
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        sent_message = await message.answer (f"<i>Ошибка в введенных данных (скорей всего idtg) </i>", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
 
 # Определение количества победителей
@@ -1240,7 +1371,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 async def much_win(message: Message, state: FSMContext):
     await state.update_data(much_win=message.text)
     win_data = await state.get_data()
-    print (win_data['much_win'])
     await state.clear()
     try:
         much_win = int(win_data['much_win'])
