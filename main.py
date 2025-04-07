@@ -45,6 +45,8 @@ from config import *
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
+
+
 HISTORY_DIR = "data/history"
 logging.basicConfig(level=logging.INFO)
 
@@ -242,31 +244,21 @@ async def start(message: types.Message, state: FSMContext):
         
             # Если розыгрыш завершен, проверяем на выигрыш
             if not giveaway_act:
-                with sqlite3.connect('data/db/giveaway/winners.db') as con:
-                    cur = con.cursor()
-                    you_win = cur.execute('SELECT 1 FROM winners WHERE id_tg = ?', [idtg]).fetchone()
-                    name = (cur.execute('SELECT us_name FROM winners WHERE id_tg = ?', [idtg]).fetchone())[0]
-                    password = (cur.execute('SELECT password FROM winners WHERE id_tg = ?', [idtg]).fetchone())[0]
-
-                
-                # Если выиграл, то присылаем пароль
-                if you_win:
-                    board = InlineKeyboardBuilder()
-                    board.add(types.InlineKeyboardButton(text="Посмотреть итог розыгрыша", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
-                    try:
-
-                        await message.answer (f'<i> Приветствую, {name}!!! 👋🏻\nВы победили в розыгрыше от <b><a href="https://firestorm-servers.com/ru">Firestorm</a></b> 🥳\nПароль для получение выигрыша\n👉🏻 {password} 👈🏻\nСообщите его в личные сообщения дискорд <u>Aorid</u> либо <u>Retmex</u> и получите свой приз 🏆 !</i>', disable_web_page_preview=True, parse_mode="HTML", reply_markup=board.as_markup())
-                    except Exception as e:
-                        print(f"Не удалось выслать пароль победителю, ошибка: {e}")
-                
-                # Если не выиграл, то в хер его
-                else:
-                    try:
+                try:
+                    with sqlite3.connect('data/db/giveaway/winners.db') as con:
+                        cur = con.cursor()
+                        name = (cur.execute('SELECT us_name FROM winners WHERE id_tg = ?', [idtg]).fetchone())[0]
+                        password = (cur.execute('SELECT password FROM winners WHERE id_tg = ?', [idtg]).fetchone())[0]
                         board = InlineKeyboardBuilder()
                         board.add(types.InlineKeyboardButton(text="Посмотреть итог розыгрыша", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
-                        await message.answer (f'<i> Приветствую, {name}! 👋🏻\nРозыгрыш завершен, пусть удача Вам улыбнется в следующий раз 😉 </i>', parse_mode="HTML", reply_markup=board.as_markup())
-                    except Exception as e:
-                        print(f"Если не выиграл, то в хер его: {e}")
+                        try:
+                            await message.answer (f'<i> Приветствую, {name}!!! 👋🏻\nВы победили в розыгрыше от <b><a href="https://firestorm-servers.com/ru">Firestorm</a></b> 🥳\nПароль для получение выигрыша\n👉🏻 {password} 👈🏻\nСообщите его в личные сообщения дискорд <u>Aorid</u> либо <u>Retmex</u> и получите свой приз 🏆 !</i>', disable_web_page_preview=True, parse_mode="HTML", reply_markup=board.as_markup())
+                        except Exception as e:
+                            print(f"Не удалось выслать пароль победителю, ошибка: {e}")
+                except:
+                    board = InlineKeyboardBuilder()
+                    board.add(types.InlineKeyboardButton(text="Итог розыгрыша", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
+                    await message.answer (f'<i>👋🏻 Приветствую, {name}! 👋🏻\nРозыгрыш завершен ✅\nРегистрация недоступна ❌\nРезультат проведенного розыгрыша можно посмотреть, нажав на кнопку ниже</i> 👇', parse_mode="HTML", reply_markup=board.as_markup())
 
             # Если розыгрыш НЕ завершен, но пользователь зареган
             else:
