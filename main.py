@@ -211,6 +211,7 @@ async def start(message: types.Message, state: FSMContext):
         try:
             with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                 cur = con.cursor()
+                number = int((cur.execute('SELECT COUNT (*) from giveaways_data').fetchone())[0])
                 giveaway_link = (cur.execute('SELECT chan_link FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
                 giveaway_name = (cur.execute('SELECT chan_name FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
                 giveaway_msg = (cur.execute('SELECT msg_id FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
@@ -219,7 +220,7 @@ async def start(message: types.Message, state: FSMContext):
             current_date = datetime.today()
             date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
-            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nСейчас активен розыгрыш в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nРозыгрыш №{number} <b><u>активен</u></b>\nПроводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
             sent_message = await message.answer (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
@@ -680,18 +681,16 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         try:
             with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                 cur = con.cursor()
-                
+                number = int((cur.execute('SELECT COUNT (*) from giveaways_data').fetchone())[0])
                 giveaway_link = (cur.execute('SELECT chan_link FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
                 giveaway_name = (cur.execute('SELECT chan_name FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
                 giveaway_msg = (cur.execute('SELECT msg_id FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
                 giveaway_end = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', ['active']).fetchone())[0]
-                number = int((cur.execute('SELECT COUNT (*) from giveaways_data').fetchone())[0])
-
             link = (f'{giveaway_link}' + '/' + f'{giveaway_msg}')
             current_date = datetime.today()
             date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
-            sent_message = await callback_query.message.edit_text (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nАктивен озыгрыш №{number}\nРозыгрыш проводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            sent_message = await callback_query.message.edit_text (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nРозыгрыш №{number} <b><u>активен</u></b>\nПроводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
             sent_message = await callback_query.message.edit_text (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
@@ -923,10 +922,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
 
-
-
-
-
     elif data == "giveaway_sos_look":
         try:
             text = "Зареганные пользователи:\n"
@@ -989,7 +984,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                 with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                     cur = con.cursor()
                     cur.execute("DROP TABLE IF EXISTS check_tributes")
-                    cur.execute("DROP TABLE IF EXISTS giveaways_data")
                     cur.execute("DROP TABLE IF EXISTS loser")
                     cur.execute("DROP TABLE IF EXISTS tributes")
                     cur.execute("DROP TABLE IF EXISTS winners")
@@ -1058,7 +1052,10 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         name_file = reason_data['name_file']
         await state.clear()
         try:
-            os.remove(path)
+            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+                cur = con.cursor()
+                cur.execute(f'UPDATE giveaways_data SET giveaway_status = ? WHERE giveaway_status = "active" ', ["finish"])
+                con.commit()
             board = InlineKeyboardBuilder()
             board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
             with open(f'data/history/log {name_file}.txt', "a", encoding="utf-8") as f:
@@ -1095,7 +1092,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             podpiska = await bot.get_chat_member(chat_id=chan_id, user_id=row[1])
             podpiska = podpiska.status
             if podpiska in ["member", "administrator", "creator"]:
-                if not row[2]:
+                if row[2] == "MINUS":
                     with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                         cur = con.cursor()
                         cur.execute(f'INSERT INTO loser (id_tg, us_name, reason) VALUES ("{row[1]}", "{row[3]}", "отсутствует тег")')
@@ -1215,6 +1212,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             con.commit()
         with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
             cur = con.cursor()
+            cur.execute(f'UPDATE giveaways_data SET admin_end = ? WHERE giveaway_status = "active" ', [nick])
             cur.execute(f'UPDATE giveaways_data SET giveaway_status = ? WHERE giveaway_status = "active" ', ["finish"])
             con.commit()
             msg_id = int((cur.execute('SELECT msg_id FROM giveaways_data WHERE giveaway_status = ?', [end]).fetchone())[0])
@@ -1384,7 +1382,7 @@ async def much_win(message: Message, state: FSMContext):
             board = InlineKeyboardBuilder()
             board.add(types.InlineKeyboardButton(text="✅Далее", callback_data="giveaway_check_podpis"))
             board.add(types.InlineKeyboardButton(text="❌Передумал", callback_data="ok"))
-            sent_message = await message.answer(f"<i>👌 Победителей будет <u>{much_win}</u>\nДалее надо осеять тех кто отписался и тех, кого нельзя тегнуть и после этого произойдет рандом.\nЖми далее</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            sent_message = await message.answer(f"<i>👌 Победителей будет <u>{much_win}</u>\nДалее надо фильтронуть тех, кто отписался и тех, кого нельзя тегнуть и после этого произойдет рандом.\nЖми далее</i>", parse_mode="HTML", reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         else:
             await state.set_state(GIVEAWAY.much_win)
