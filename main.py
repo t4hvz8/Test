@@ -571,6 +571,13 @@ async def start_giveaway(callback_query: types.CallbackQuery, state: FSMContext)
                     us_name VARCHAR (20),
                     password VARCHAR (30),
                     us_ava BLOB
+                    )''')
+        
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS temp(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    id_tg VARCHAR (20),
+                    us_nick VARCHAR (20)
                     )''') 
         
         con.commit()
@@ -921,7 +928,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                 file.write(text)
             with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                 cur = con.cursor()
-                cur.execute("SELECT * FROM tributes")
+                cur.execute("SELECT id, id_tg, us_nick, us_name FROM tributes")
                 rows = cur.fetchall()
             for row in rows:
                 with open('data/db/giveaway/giveaway_tributes.txt', "a", encoding="utf-8") as file:
@@ -979,6 +986,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                     cur.execute("DROP TABLE IF EXISTS loser")
                     cur.execute("DROP TABLE IF EXISTS tributes")
                     cur.execute("DROP TABLE IF EXISTS winners")
+                    cur.execute("DROP TABLE IF EXISTS temp")
                     con.commit()
             except Exception as e:
                 await callback_query.message.answer(f"<i>Не удалось удалить старую базу розыгрыша\nОшибка {e}</i>", parse_mode="HTML")
@@ -1063,79 +1071,80 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
        
 
     elif data == "giveaway_check_podpis":
-        act = 'active'
-        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
-            cur = con.cursor()
-            tributes = (cur.execute('SELECT COUNT (*) from tributes').fetchone())[0]
-            cur.execute('''
-            CREATE TABLE IF NOT EXISTS check_tributes(
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                    id_tg VARCHAR (20),
-                    us_nick VARCHAR (20),
-                    us_name VARCHAR (20),
-                    podpis VARCHAR (20)
-                    )''')  
-            con.commit()
-            chan_id = (cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
-            rows = cur.execute("SELECT id, id_tg, us_nick, us_name FROM tributes")
-            rows = cur.fetchall()
-        for row in rows:
-            await callback_query.message.edit_text(f"<i>Запускаем проверку участников\nПроверяем {row[0]} из {tributes}</i>", parse_mode="HTML")
-            podpiska = await bot.get_chat_member(chat_id=chan_id, user_id=row[1])
-            podpiska = podpiska.status
-            if podpiska in ["member", "administrator", "creator"]:
-                if row[2] == "MINUS":
-                    with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
-                        cur = con.cursor()
-                        cur.execute(f'INSERT INTO loser (id_tg, us_name, reason) VALUES ("{row[1]}", "{row[3]}", "отсутствует тег")')
-                        con.commit()
-                else:
-                    with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
-                        cur = con.cursor()
-                        cur.execute(f'INSERT INTO check_tributes (id_tg, us_nick, us_name, podpis) VALUES ("{row[1]}", "{row[2]}", "{row[3]}", "{podpiska}")')
-                        con.commit()
-            else: 
-                with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
-                    cur = con.cursor()
-                    cur.execute(f'INSERT INTO loser (id_tg, us_name, reason) VALUES ("{row[1]}", "{row[3]}", "отписался")')
-                    con.commit()
-        act = 'active'
-        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
-            cur = con.cursor()
-            result = int((cur.execute('SELECT COUNT (*) from check_tributes').fetchone())[0])
-        itogo = int(tributes) - result
-        board = InlineKeyboardBuilder()
-        board.add(types.InlineKeyboardButton(text="Срандомить победителей", callback_data="giveaway_random"))
-        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-        board.adjust(1)
-        sent_message = await callback_query.message.answer(f"<i>Отсеялось {itogo} участников, причину можно будет увидеть в логах после рандома.</i>", parse_mode="HTML", reply_markup=board.as_markup())
-        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        print ("ждем фикса")
        
 
     elif data == "giveaway_random":
         act = "active"
+        stop_flag = 0
+        result = "Нарандомил:\n"
         with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
             cur = con.cursor()
-            all = int((cur.execute('SELECT COUNT (*) from check_tributes').fetchone())[0])
+            cur.execute(f"DROP TABLE IF EXISTS winners")
+            cur.execute(f"DROP TABLE IF EXISTS loser")
+            con.commit()
+            cur.execute('''
+            CREATE TABLE IF NOT EXISTS winners(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    id_tg VARCHAR (20),
+                    us_nick VARCHAR (20),
+                    us_name VARCHAR (20),
+                    password VARCHAR (30),
+                    us_ava BLOB
+                    )''')
+            cur.execute('''
+            CREATE TABLE IF NOT EXISTS loser(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    id_tg VARCHAR (20),
+                    us_name VARCHAR (20),
+                    reason VARCHAR (20)
+                    )''')
+            con.commit()
+            
+            all = int((cur.execute('SELECT COUNT (*) FROM tributes').fetchone())[0])
             much_win = int((cur.execute('SELECT giveaway_much_win FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0])
-        wins_number = random.sample(range(1, all+1), much_win)
-        result = "Нарандомил:\n"
-        i=0
-        await state.set_state(GIVEAWAY.win_numbers)
-        await state.update_data(win_numbers=wins_number)
-        for winner in wins_number:
-            i = i + 1
-            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
+            chan_id = (cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
+            all = list(range(1, all+1))
+            while stop_flag != much_win:
+                wins_number = random.sample(all, much_win)
                 cur = con.cursor()
-                win_nick = (cur.execute('SELECT us_nick FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
-                win_name = (cur.execute('SELECT us_name FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
-            result += f"{i}) Ник - {win_nick}    Имя - {win_name}\n"
+                for win in wins_number:
+                    idtg = (cur.execute('SELECT id_tg FROM tributes WHERE id = ?', [win]).fetchone())[0]
+                    us_nick = (cur.execute('SELECT us_nick FROM tributes WHERE id = ?', [win]).fetchone())[0]
+                    us_name = (cur.execute('SELECT us_name FROM tributes WHERE id = ?', [win]).fetchone())[0]
+                    podpiska = await bot.get_chat_member(chat_id=chan_id, user_id=idtg)
+                    podpiska = podpiska.status
+                    if podpiska in ["member", "administrator", "creator"]:
+                        if us_nick == "MINUS":
+                            cur.execute(f'INSERT INTO loser (id_tg, us_name, reason) VALUES ("{idtg}", "{us_name}", "отсутствует тег")')
+                            con.commit()
+                            all.remove(win)
+                        else:
+                            password = ''
+                            for x in range(10): #Количество символов (10)
+                                password = password + random.choice(list('1234567890abcdefghigklmnopqrstuvyxwzABCDEFGHIGKLMNOPQRSTUVYXWZ!@#$%^&*()'))
+                            ava = (cur.execute('SELECT us_ava FROM tributes WHERE id_tg = ?', [idtg]).fetchone())[0]
+                            cur.execute(f'UPDATE tributes SET us_nick = ? WHERE id = {win} ', ["WINNER"])
+                            cur.execute('INSERT INTO winners (id_tg, us_nick, us_name, password, us_ava) VALUES (?, ?, ?, ?, ?)', (idtg, us_nick, us_name, password, ava))
+                            con.commit()
+                            all.remove(win)
+                            result += f"{win}) Ник - {us_nick}    Имя - {us_name}\n"
+                            stop_flag = (cur.execute('SELECT COUNT (*) from winners').fetchone())[0]
+                            if stop_flag == much_win:
+                                break
+                            
+
+                    else: 
+                        cur.execute(f'INSERT INTO loser (id_tg, us_name, reason) VALUES ("{idtg}", "{us_name}", "отписался")')
+                        con.commit() 
+                        all.remove(win)
+                
         board = InlineKeyboardBuilder()
-        board.add(types.InlineKeyboardButton(text="✅Финалим", callback_data="giveaway_finish"))
-        board.add(types.InlineKeyboardButton(text="❌Перерандом", callback_data="giveaway_random"))
+        board.add(types.InlineKeyboardButton(text="✅Ok", callback_data="giveaway_finish"))
+        board.add(types.InlineKeyboardButton(text="❌Заново", callback_data="admentest_rename"))
         board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
         board.adjust(2, 1)
-        sent_message = await callback_query.message.edit_text(result, parse_mode="HTML", reply_markup=board.as_markup())
+        sent_message = await callback_query.message.answer(f"{result}\n<i>Отправляем пост в канал и сообщения победителям? Эта операция <b>необратима</b>, розыгрыш завершится</i>", parse_mode="HTML", reply_markup=board.as_markup())
         asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
 
 
@@ -1146,29 +1155,13 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
             cur = con.cursor()
             win_date = (cur.execute('SELECT giveaway_end FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0]
-        giveaway_data = await state.get_data()
-        wins_number = giveaway_data['win_numbers']
-        await state.clear()
-        i = 0
-        for winner in wins_number:
-            i = i + 1
-            await asyncio.sleep(1)
-            password = ''
-            for x in range(10): #Количество символов (10)
-                password = password + random.choice(list('1234567890abcdefghigklmnopqrstuvyxwzABCDEFGHIGKLMNOPQRSTUVYXWZ!@#$%^&*()'))
-            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
-                cur = con.cursor()
-                win_idtg = (cur.execute('SELECT id_tg FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
-                win_nick = (cur.execute('SELECT us_nick FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
-                win_name = (cur.execute('SELECT us_name FROM check_tributes WHERE id = ?', [winner]).fetchone())[0]
-                idtg = int(win_idtg)
-                ava = (cur.execute('SELECT us_ava FROM tributes WHERE id_tg = ?', [idtg]).fetchone())[0]
-                cur.execute('INSERT INTO winners (id_tg, us_nick, us_name, password, us_ava) VALUES (?, ?, ?, ?, ?)', (win_idtg, win_nick, win_name, password, ava))
-                con.commit()
-            idtg = int(win_idtg)
-            text += f"{i}) Ник - {win_nick}, Имя - {win_name}, Пароль - {password}\n"
+            cur.execute('SELECT id, id_tg, us_nick, us_name, password FROM winners')
+            rows = cur.fetchall()
+        for row in rows:
+            text += f"{row[0]}) Ник - {row[2]}, Имя - {row[3]}, Пароль - {row[4]}\n"
             try:
-                await bot.send_message(idtg, f"<i>Привет, {win_name}!\nВы победили в розыгрыше от Firestorm.\nПароль на получение выигрыша</i>\n👉🏻 <b>{password}</b> 👈🏻\n<i>Сообщите его <u>Aorid</u> или <u>Retmex</u> в дискорде и получите свой приз!</i>", parse_mode="HTML")
+                idtg = int(row[1])
+                await bot.send_message(idtg, f"<i>Привет, {row[3]}!\nВы победили в розыгрыше от Firestorm.\nПароль на получение выигрыша</i>\n👉🏻 <b>{row[4]}</b> 👈🏻\n<i>Сообщите его <u>Aorid</u> или <u>Retmex</u> в дискорде и получите свой приз!</i>", parse_mode="HTML")
                 text += "сообщение с паролем отправлено\n"
             except Exception as e:
                 text += f"сообщение с паролем не отправлено. Ошибка {e}\n"
@@ -1207,7 +1200,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             cur.execute(f'UPDATE giveaways_data SET admin_end = ? WHERE giveaway_status = "active" ', [nick])
             cur.execute(f'UPDATE giveaways_data SET giveaway_status = ? WHERE giveaway_status = "active" ', ["finish"])
             con.commit()
-            msg_id = int((cur.execute('SELECT msg_id FROM giveaways_data WHERE giveaway_status = ?', [end]).fetchone())[0])
             chan_id = int((cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', [end]).fetchone())[0])
         board = InlineKeyboardBuilder()
         board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
@@ -1299,7 +1291,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
     elif data == 'admentest':
         board = InlineKeyboardBuilder()
         board.add(types.InlineKeyboardButton(text="Сгенерировать базу участников", callback_data="admentest_bd"))
-        board.add(types.InlineKeyboardButton(text="Ренейм", callback_data="admentest_rename"))
+        board.add(types.InlineKeyboardButton(text="Проверка херни", callback_data="admentest_rename"))
         board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
         board.adjust(1)
         sent_message = await callback_query.message.edit_text("<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
@@ -1316,7 +1308,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
 
     elif data == "admentest_rename":
-        print ("длывалор")
+        print ("ghjdthrf")
 
 
 
@@ -1364,7 +1356,6 @@ async def much_win(message: Message, state: FSMContext):
     await state.clear()
     try:
         much_win = int(win_data['much_win'])
-        print (much_win)
         act = 'active'
         if much_win > 0:
             with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
@@ -1372,9 +1363,9 @@ async def much_win(message: Message, state: FSMContext):
                 cur.execute(f'UPDATE giveaways_data SET giveaway_much_win = ? WHERE giveaway_status = "active" ', [much_win])
                 con.commit()
             board = InlineKeyboardBuilder()
-            board.add(types.InlineKeyboardButton(text="✅Далее", callback_data="giveaway_check_podpis"))
+            board.add(types.InlineKeyboardButton(text="✅Далее", callback_data="giveaway_random"))
             board.add(types.InlineKeyboardButton(text="❌Передумал", callback_data="ok"))
-            sent_message = await message.answer(f"<i>👌 Победителей будет <u>{much_win}</u>\nДалее надо фильтронуть тех, кто отписался и тех, кого нельзя тегнуть и после этого произойдет рандом.\nЖми далее</i>", parse_mode="HTML", reply_markup=board.as_markup())
+            sent_message = await message.answer(f"<i>👌 Победителей будет <u>{much_win}</u>\nДля продолжения жми кнопку</i>", parse_mode="HTML", reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         else:
             await state.set_state(GIVEAWAY.much_win)

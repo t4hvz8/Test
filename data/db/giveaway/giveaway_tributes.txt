@@ -1,5 +1,3 @@
 Зареганные пользователи:
-IDTG 392438052    NICK @Naboksya    NAME Дмитрий
-IDTG 900865796    NICK @DV_r2d2    NAME Константин
 IDTG 2107868531    NICK @Tughff    NAME Яков
-IDTG 814537797    NICK MINUS    NAME Серж
+IDTG 900865796    NICK @DV_r2d2    NAME Константин
