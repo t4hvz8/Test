@@ -12,6 +12,8 @@ import random
 import time
 import requests
 
+import update
+
 from bs4 import BeautifulSoup
 
 from array import *
@@ -40,6 +42,8 @@ from aiogram.types.input_file import FSInputFile
 from aiogram_calendar import SimpleCalendarCallback, SimpleCalendar
 
 from config import *
+
+
 
 
 bot = Bot(token=TOKEN)
@@ -98,6 +102,14 @@ cur.execute('''
             nick VARCHAR (40),
             role VARCHAR (20)
             )''')
+cur.execute('''
+    CREATE TABLE IF NOT EXISTS login(
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            login_app VARCHAR (200), 
+            password_app VARCHAR (200),
+            time_app  VARCHAR (200)
+            )''')
+
 con.commit()
 cur.close()
 con.close()
@@ -169,41 +181,9 @@ async def start(message: types.Message, state: FSMContext):
         cur.execute(f'UPDATE admins SET nick = ? wHERE idtg = {user_id}', [nick])
         con.commit()
         con.close()
-        
-#добавил 29/01 проверяем срок действия
-        response = requests.get(
-            'https://www.pythonanywhere.com/api/v0/user/{username}/webapps/'.format(
-            username=username_app
-            ),
-            headers={'Authorization': 'Token {token}'.format(token=token_app)}
-        )
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'lxml').text
-            data = response.json()
-            expiry_date = data[0]['expiry']
-            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
-            time_now = (datetime.today()).date()
-            exp = (time_web - time_now).days
-
-
-# для проверки таска            
-#            response = requests.get(
-#                'https://www.pythonanywhere.com/api/v0/user/{username}/schedule/'.format(
-#                username=username_app
-#                ),
-#                headers={'Authorization': 'Token {token}'.format(token=token_app)}
-#            )
-#            soup = BeautifulSoup(response.text, 'lxml').text
-#            data = response.json()
-#            expiry_date = data[0]['expiry']
-#            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
-#            time_now = datetime.today()
-#            task_expiry = (time_web - time_now).days
-        else:
-            exp = 'не удалось обновить'
 
         if role == 'master':
-            board.add(types.InlineKeyboardButton(text="Функции для теста", callback_data="admentest"))
+            board.add(types.InlineKeyboardButton(text="🛠Продлить WebApp🛠", callback_data="selenium_update"))
             board.row(types.InlineKeyboardButton(text="Работа с базой админов", callback_data="start_adminbase"))
         board.row(types.InlineKeyboardButton(text="🎁Управление розыгрышем🎁", callback_data="giveaway"))
         board.row(types.InlineKeyboardButton(text="История розыгрышей", callback_data="start_history"))
@@ -222,10 +202,21 @@ async def start(message: types.Message, state: FSMContext):
             current_date = datetime.today()
             date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
-            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nРозыгрыш №{number} <b><u>активен</u></b>\nПроводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            with sqlite3.connect('data/db/role/admin.db') as con:
+                cur = con.cursor()
+                time_app = (cur.execute('SELECT time_app FROM login').fetchone())[0]
+            date_obj = datetime.strptime(time_app, "%Y-%m-%d")
+            delta_app = (date_obj - current_date).days
+            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nРозыгрыш №{number} <b><u>активен</u></b>\nПроводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{delta_app}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
-            sent_message = await message.answer (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            with sqlite3.connect('data/db/role/admin.db') as con:
+                cur = con.cursor()
+                time_app = (cur.execute('SELECT time_app FROM login').fetchone())[0]
+            current_date = datetime.today()
+            date_obj = datetime.strptime(time_app, "%Y-%m-%d")
+            delta_app = (date_obj - current_date).days
+            sent_message = await message.answer (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{delta_app}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
     
     else:
@@ -339,7 +330,7 @@ async def start(message: types.Message, state: FSMContext):
                             cur.execute('INSERT INTO tributes (id_tg, us_nick, us_name, podpis, us_ava) VALUES (?, ?, ?, ?, ?)', (idtg, nick, name, podpiska, ava))
                         try:
                             await message.answer (f'<i>👋🏻 Привет, {name}!!! 👋🏻\nРегистрация выполнена✅\nДо конца розыгрыша осталось {delta} дней 📆</i>', parse_mode="HTML")
-                            os.remove(f'data/variables/scr/avatars/{idtg}.jpg')
+#                            os.remove(f'data/variables/scr/avatars/{idtg}.jpg')
                         except Exception as e:
                             print(f"Регистрация выполнена\nДо конца розыгрыша осталось: {e}")
                         
@@ -547,15 +538,6 @@ async def start_giveaway(callback_query: types.CallbackQuery, state: FSMContext)
                     )''')   
         
         cur.execute('''
-            CREATE TABLE IF NOT EXISTS check_tributes(
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                    id_tg VARCHAR (20),
-                    us_nick VARCHAR (20),
-                    us_name VARCHAR (20),
-                    podpis VARCHAR (20)
-                    )''')  
-        
-        cur.execute('''
             CREATE TABLE IF NOT EXISTS loser(
                     id INTEGER PRIMARY KEY AUTOINCREMENT, 
                     id_tg VARCHAR (20),
@@ -572,13 +554,6 @@ async def start_giveaway(callback_query: types.CallbackQuery, state: FSMContext)
                     password VARCHAR (30),
                     us_ava BLOB
                     )''')
-        
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS temp(
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                    id_tg VARCHAR (20),
-                    us_nick VARCHAR (20)
-                    )''') 
         
         con.commit()
 
@@ -636,41 +611,10 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                     os.remove(file['path'])
                 except Exception as e:
                     print(f"Ошибка при удалении: {e}")
-        response = requests.get(
-            'https://www.pythonanywhere.com/api/v0/user/{username}/webapps/'.format(
-            username=username_app
-            ),
-            headers={'Authorization': 'Token {token}'.format(token=token_app)}
-        )
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'lxml').text
-            data = response.json()
-            expiry_date = data[0]['expiry']
-            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
-            time_now = (datetime.today()).date()
-            exp = (time_web - time_now).days
-
-
-# для проверки таска            
-#            response = requests.get(
-#                'https://www.pythonanywhere.com/api/v0/user/{username}/schedule/'.format(
-#                username=username_app
-#                ),
-#                headers={'Authorization': 'Token {token}'.format(token=token_app)}
-#            )
-#            soup = BeautifulSoup(response.text, 'lxml').text
-#            data = response.json()
-#            expiry_date = data[0]['expiry']
-#            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
-#            time_now = datetime.today()
-#            task_expiry = (time_web - time_now).days
-        else:
-            exp = 'не удалось обновить'
-        
 
         board = InlineKeyboardBuilder()
         if role  == 'master':
-            board.add(types.InlineKeyboardButton(text="Функции для теста", callback_data="admentest"))
+            board.add(types.InlineKeyboardButton(text="🛠Продлить WebApp🛠", callback_data="selenium_update"))
             board.add(types.InlineKeyboardButton(text="Работа с базой админов", callback_data="start_adminbase"))
         board.add(types.InlineKeyboardButton(text="🎁Управление розыгрышем🎁", callback_data="giveaway"))
         board.add(types.InlineKeyboardButton(text="История розыгрышей", callback_data="start_history"))
@@ -689,12 +633,34 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             current_date = datetime.today()
             date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
-            sent_message = await callback_query.message.edit_text (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nРозыгрыш №{number} <b><u>активен</u></b>\nПроводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            with sqlite3.connect('data/db/role/admin.db') as con:
+                cur = con.cursor()
+                time_app = (cur.execute('SELECT time_app FROM login').fetchone())[0]
+            date_obj = datetime.strptime(time_app, "%Y-%m-%d")
+            delta_app = (date_obj - current_date).days
+            sent_message = await callback_query.message.edit_text (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nРозыгрыш №{number} <b><u>активен</u></b>\nПроводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{delta_app}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
-            sent_message = await callback_query.message.edit_text (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            with sqlite3.connect('data/db/role/admin.db') as con:
+                cur = con.cursor()
+                time_app = (cur.execute('SELECT time_app FROM login').fetchone())[0]
+            current_date = datetime.today()
+            date_obj = datetime.strptime(time_app, "%Y-%m-%d")
+            delta_app = (date_obj - current_date).days
+            sent_message = await callback_query.message.edit_text (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{delta_app}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
     
+    elif data == "selenium_update":
+        print ('Запрос обновления WebApp')
+        async for result in update.update_webapp():
+            await bot.send_message(callback_query.from_user.id, result)
+        board = InlineKeyboardBuilder()
+        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
+        sent_message = await callback_query.message.edit_text("В процессе реализации", parse_mode="HTML", reply_markup=board.as_markup())
+        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        #async for result in marsh.check_marshrut():
+        #    await bot.send_message(callback_query.from_user.id, result)
+
 
     elif data == "start_adminbase":
         con = sqlite3.connect('data/db/role/admin.db')
@@ -870,13 +836,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
 
     elif data == "giveaway_end":
-        try:
-            with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
-                cur = con.cursor()
-                cur.execute(f"DROP TABLE IF EXISTS check_tributes")
-                con.commit()
-        except Exception as e:
-            print (f'Ошибка при удалении check_tributes: {e}')
         board = InlineKeyboardBuilder()
         board.add(types.InlineKeyboardButton(text="❌Нет, я случайно❌", callback_data="ok"))
         await state.set_state(GIVEAWAY.much_win)
@@ -978,15 +937,12 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             sent_message = await callback_query.message.edit_text(f'<i>Наркоман чтоле!\nУже есть АКТИВНЫЙ РОЗЫГРЫШ в <a href="{exist}">канале</a>!</i>', parse_mode="HTML", reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
-
             try:
                 with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                     cur = con.cursor()
-                    cur.execute("DROP TABLE IF EXISTS check_tributes")
                     cur.execute("DROP TABLE IF EXISTS loser")
                     cur.execute("DROP TABLE IF EXISTS tributes")
                     cur.execute("DROP TABLE IF EXISTS winners")
-                    cur.execute("DROP TABLE IF EXISTS temp")
                     con.commit()
             except Exception as e:
                 await callback_query.message.answer(f"<i>Не удалось удалить старую базу розыгрыша\nОшибка {e}</i>", parse_mode="HTML")
@@ -998,6 +954,42 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                     con.commit()
             except Exception as e:
                 await callback_query.message.answer(f"<i>Не удалось удалить старую базу винеров\nОшибка {e}</i>", parse_mode="HTML")
+            
+
+# Проверяем срок действия
+            response = requests.get(
+                'https://www.pythonanywhere.com/api/v0/user/{username}/webapps/'.format(
+                username=username_app
+                ),
+                headers={'Authorization': 'Token {token}'.format(token=token_app)}
+            )
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'lxml').text
+                data = response.json()
+                expiry_date = data[0]['expiry']
+                time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
+                time_now = (datetime.today()).date()
+                exp = (time_web - time_now).days
+
+                with sqlite3.connect('data/db/role/admin.db') as con:
+                    cur = con.cursor()
+                    cur.execute('UPDATE login SET time_app = ?', [time_web])
+
+    # для проверки таска            
+    #            response = requests.get(
+    #                'https://www.pythonanywhere.com/api/v0/user/{username}/schedule/'.format(
+    #                username=username_app
+    #                ),
+    #                headers={'Authorization': 'Token {token}'.format(token=token_app)}
+    #            )
+    #            soup = BeautifulSoup(response.text, 'lxml').text
+    #            data = response.json()
+    #            expiry_date = data[0]['expiry']
+    #            time_web = datetime.strptime(f"{expiry_date}", "%Y-%m-%d").date()
+    #            time_now = datetime.today()
+    #            task_expiry = (time_web - time_now).days
+            else:
+                exp = 'не удалось обновить'
 
             con = sqlite3.connect('data/db/giveaway/chan_data.db')
             cur = con.cursor()
@@ -1012,7 +1004,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                 board.add(types.InlineKeyboardButton(text="➖Удалить канал➖", callback_data="channal_minus"))
                 board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
                 board.adjust(*[1] * len(rows), 2, 1)
-                sent_message = await callback_query.message.edit_text(f"<i>Выбирай канал для запуска розыгрыша</i>", parse_mode="HTML", reply_markup=board.as_markup())
+                sent_message = await callback_query.message.edit_text(f"<i><b>WebApp будет активно еще <u>{exp}</u> дней</b>\nВыбирай канал для запуска розыгрыша</i>", parse_mode="HTML", reply_markup=board.as_markup())
                 asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
             except:
                 board.add(types.InlineKeyboardButton(text="➕Добавить канал➕", callback_data="channal_plus"))
@@ -1068,10 +1060,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
             sent_message = await callback_query.message.edit_text("<i>Не удалось отменить розыгрыш. Пиши в SOS</i>", parse_mode="HTML", reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
-       
-
-    elif data == "giveaway_check_podpis":
-        print ("ждем фикса")
        
 
     elif data == "giveaway_random":
@@ -1132,8 +1120,6 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                             stop_flag = (cur.execute('SELECT COUNT (*) from winners').fetchone())[0]
                             if stop_flag == much_win:
                                 break
-                            
-
                     else: 
                         cur.execute(f'INSERT INTO loser (id_tg, us_name, reason) VALUES ("{idtg}", "{us_name}", "отписался")')
                         con.commit() 
@@ -1299,12 +1285,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
 
     elif data == 'admentest_bd':
-        board = InlineKeyboardBuilder()
-        board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-        board.adjust(1)
-        await state.set_state(ADMINS.generate)
-        sent_message = await callback_query.message.edit_text("<i>ВВеди число участников, которых ты хочешь сгененировать.\n\n<b>Жду...</b></i>", parse_mode="HTML", reply_markup=board.as_markup())
-        asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
+        print ("ghjdthrf")
 
 
     elif data == "admentest_rename":
@@ -1386,29 +1367,6 @@ async def much_win(message: Message, state: FSMContext):
 async def split_message(text: str, max_length: int = 4096) -> list[str]:
     return [text[i:i + max_length] for i in range(0, len(text), max_length)]
 
-
-# Генерация базы участников
-@dp.message(ADMINS.generate)
-async def generate_base(message: Message, state: FSMContext):
-    await state.update_data(generate=message.text)
-    generate_data = await state.get_data()
-    generate = int(generate_data['generate'])
-    await state.clear()
-    idtg = ''
-    for gen in range(1, generate+1):
-        idtg = ""
-        for x in range(10): #Количество символов (10)
-            idtg = idtg + random.choice(list('1234567890'))
-        with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
-            cur = con.cursor()
-            cur.execute(f'INSERT INTO tributes (id_tg, us_nick, us_name) VALUES ("{idtg}", "nick_{gen}", "name_{gen}")')
-            con.commit()
-    board = InlineKeyboardBuilder()
-    board.add(types.InlineKeyboardButton(text="Проверить базу", callback_data="giveaway_sos_look"))
-    board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
-    board.adjust(1)
-    sent_message = await message.answer("<i>Выбирай нужный пункт</i>", parse_mode="HTML", reply_markup=board.as_markup())
-    asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         
 @dp.message(GIVEAWAY.stop_reason)
 async def stop(message: Message, state: FSMContext):
