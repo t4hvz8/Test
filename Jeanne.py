@@ -188,6 +188,7 @@ async def start(message: types.Message, state: FSMContext):
         board.row(types.InlineKeyboardButton(text="🎁Управление розыгрышем🎁", callback_data="giveaway"))
         board.row(types.InlineKeyboardButton(text="История розыгрышей", callback_data="start_history"))
         board.row(types.InlineKeyboardButton(text="Инструменты", callback_data="start_notepad"))
+        board.row(types.InlineKeyboardButton(text="Проверить WebApp", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
         board.row(types.InlineKeyboardButton(text="❗️HELP❗️SOS❗️", callback_data="start_sos"))
         board.adjust(1)
         try:
@@ -619,6 +620,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         board.add(types.InlineKeyboardButton(text="🎁Управление розыгрышем🎁", callback_data="giveaway"))
         board.add(types.InlineKeyboardButton(text="История розыгрышей", callback_data="start_history"))
         board.add(types.InlineKeyboardButton(text="Инструменты", callback_data="start_notepad"))
+        board.row(types.InlineKeyboardButton(text="Проверить WebApp", web_app=WebAppInfo(url='https://firestormwebapp.pythonanywhere.com/start')))
         board.add(types.InlineKeyboardButton(text="❗️HELP❗️SOS❗️", callback_data="start_sos"))
         board.adjust(1)
         try:
@@ -650,8 +652,8 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             sent_message = await callback_query.message.edit_text (f"👋🏻 <i>Привет, {name}!!! 👋🏻\n<b>WebApp будет активно еще <u>{delta_app}</u> дней</b>\nВыбирай нужный пункт</i>", parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
     
+
     elif data == "selenium_update":
-        print ('Запрос обновления WebApp')
         async for result in update.update_webapp():
             await bot.send_message(callback_query.from_user.id, result)
         board = InlineKeyboardBuilder()
