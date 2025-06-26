@@ -1,4 +1,4 @@
-#       900865796
+#       900865796 моя
 # создать pip freeze > requirements.txt
 # установить pip install -r requirements.txt
 
