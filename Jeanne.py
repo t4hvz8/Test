@@ -12,9 +12,9 @@ import random
 import time
 import requests
 
-#import update
+import update
 
-#from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup
 
 from array import *
 
