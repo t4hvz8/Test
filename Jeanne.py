@@ -12,7 +12,7 @@ import random
 import time
 import requests
 
-import update
+#import update
 
 from bs4 import BeautifulSoup
 
@@ -341,7 +341,7 @@ async def start(message: types.Message, state: FSMContext):
                             chan_id = int((cur.execute('SELECT chan_id FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0])
                             msg_id = int((cur.execute('SELECT msg_id FROM giveaways_data WHERE giveaway_status = ?', [act]).fetchone())[0])
                         board = InlineKeyboardBuilder()
-                        board.add(types.InlineKeyboardButton(text=f"Регистрация ({tributes+1})", url='https://t.me/Firestorm_contest_bot'))
+                        board.add(types.InlineKeyboardButton(text=f"Участвовать ({tributes+1})", url='https://t.me/Firestorm_contest_bot'))
                         try:
                             await bot.edit_message_reply_markup(chat_id=chan_id, message_id=msg_id, reply_markup=board.as_markup())
                         except Exception as e:
@@ -1252,7 +1252,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
         with open('data/variables/post/start_post.txt', "r", encoding="utf-8") as f:
             text_post = f.read()
         board = InlineKeyboardBuilder()
-        board.add(types.InlineKeyboardButton(text="Регистрация", url='https://t.me/Firestorm_contest_bot'))
+        board.add(types.InlineKeyboardButton(text="Участвовать", url='https://t.me/Firestorm_contest_bot'))
         msg = await bot.send_photo(chat_id=chan_id, photo=jpg_post, caption=text_post, parse_mode="HTML", reply_markup=board.as_markup())
         msg_id = msg.message_id
         with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
@@ -1604,7 +1604,7 @@ def get_sorted_items(path: str):
 async def list_directory(message: types.Message, path: str):
     items = get_sorted_items(HISTORY_DIR)
     files = items
-    MAX_FILES = 12
+    MAX_FILES = 30
     if len(files) > MAX_FILES:
         # Получаем список файлов для удаления (самые старые)
         files_to_delete = files[MAX_FILES:]
