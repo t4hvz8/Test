@@ -359,7 +359,7 @@ async def start(message: types.Message, state: FSMContext):
                         except Exception as e:
                             print(f"Вы не подписаны на канал 320: {e}")
                 except Exception as e:
-                    #print (f"322 строка :{e}")
+                    print (f"322 строка :{e}")
                     with sqlite3.connect('data/db/giveaway/giveaway.db') as con:
                         act = 'active'
                         cur = con.cursor()
@@ -368,7 +368,7 @@ async def start(message: types.Message, state: FSMContext):
                     try:
                         await message.answer (f'<i> Приветствую, {name}! 👋🏻\nК сожалению, Вы не подписаны на канал <a href="{chan_link}"> {chan_name}</a>  😟</i>', parse_mode="HTML")
                     except Exception as e:
-                        #print(f"Вы не подписаны на канал 326: {e}")
+                        print(f"Вы не подписаны на канал 326: {e}")
 
 
 # Конвертация аватары в бинарный файл
