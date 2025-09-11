@@ -1603,7 +1603,7 @@ def get_sorted_items(path: str):
 async def list_directory(message: types.Message, path: str):
     items = get_sorted_items(HISTORY_DIR)
     files = items
-    MAX_FILES = 30
+    MAX_FILES = 12
     if len(files) > MAX_FILES:
         # Получаем список файлов для удаления (самые старые)
         files_to_delete = files[MAX_FILES:]
