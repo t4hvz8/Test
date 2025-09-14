@@ -161,6 +161,7 @@ async def start(message: types.Message, state: FSMContext):
     files = items
     
     MAX_FILES = 12
+    print (MAX_FILES)
     if len(files) > MAX_FILES:
         # Получаем список файлов для удаления (самые старые)
         files_to_delete = files[MAX_FILES:]
@@ -607,6 +608,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
             # Получаем список файлов для удаления (самые старые)
             files_to_delete = files[MAX_FILES:]
             for file in files_to_delete:
+                print ({file['path']})
                 try:
                     os.remove(file['path'])
                 except Exception as e:
@@ -1595,7 +1597,7 @@ def get_sorted_items(path: str):
     
     
     # Сортируем по дате изменения (сначала новые)
-    files.sort(key=lambda x: x['mtime'])
+    files.sort(key=lambda x: x['mtime'], reverse=True)
     return files
 
 
