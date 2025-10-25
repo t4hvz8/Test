@@ -1130,7 +1130,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                 
         board = InlineKeyboardBuilder()
         board.add(types.InlineKeyboardButton(text="✅Ok", callback_data="giveaway_finish"))
-        board.add(types.InlineKeyboardButton(text="❌Заново", callback_data="admentest_rename"))
+        board.add(types.InlineKeyboardButton(text="❌Заново", callback_data="giveaway_random"))
         board.add(types.InlineKeyboardButton(text="↪️В начало↩️", callback_data="ok"))
         board.adjust(2, 1)
         sent_message = await callback_query.message.answer(f"{result}\n<i>Отправляем пост в канал и сообщения победителям? Эта операция <b>необратима</b>, розыгрыш завершится</i>", parse_mode="HTML", reply_markup=board.as_markup())
