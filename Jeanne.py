@@ -1242,6 +1242,14 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
 
 
     elif data == "post_ok":
+         # Удаляем все содержимое папки avatars
+        TARGET_FOLDER = "data/variables/scr/avatars"
+        items = os.listdir(TARGET_FOLDER)
+        for item in items:
+            item_path = os.path.join(TARGET_FOLDER, item)
+            if os.path.isfile(item_path):
+                os.remove(item_path)
+
         giveaway_data = await state.get_data()
         admin_nick = callback_query.from_user.username
         chan_id = int(giveaway_data['chan_id'])
