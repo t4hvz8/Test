@@ -203,12 +203,13 @@ async def start(message: types.Message, state: FSMContext):
             current_date = datetime.today()
             date_obj = datetime.strptime(giveaway_end, "%d_%m_%Y")
             delta = (date_obj - current_date).days
+            delta1 = int(delta)+1
             with sqlite3.connect('data/db/role/admin.db') as con:
                 cur = con.cursor()
                 time_app = (cur.execute('SELECT time_app FROM login').fetchone())[0]
             date_obj = datetime.strptime(time_app, "%Y-%m-%d")
             delta_app = (date_obj - current_date).days
-            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nРозыгрыш №{number} <b><u>активен</u></b>\nПроводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta}</u></b> дней\n<b>WebApp будет активно еще <u>{delta_app}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
+            sent_message = await message.answer (f'👋🏻 <i>Привет, {name}!!! 👋🏻\nРозыгрыш №{number} <b><u>активен</u></b>\nПроводиться в канале <a href="{giveaway_link}">{giveaway_name}</a> \nПосмотреть пост можно тут 👉🏻<a href="{link}">ЖМЯК</a>\nДо конца розыгрыша осталось <b><u>{delta1}</u></b> дней\n<b>WebApp будет активно еще <u>{delta_app}</u> дней</b>\nВыбирай нужный пункт</i>', parse_mode="HTML", disable_web_page_preview=True, reply_markup=board.as_markup())
             asyncio.create_task(delete_message_after_delay(sent_message.chat.id, sent_message.message_id))
         except:
             with sqlite3.connect('data/db/role/admin.db') as con:
