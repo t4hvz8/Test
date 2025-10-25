@@ -1115,7 +1115,7 @@ async def process_callback(callback_query: types.CallbackQuery, state: FSMContex
                             for x in range(10): #Количество символов (10)
                                 password = password + random.choice(list('1234567890abcdefghigklmnopqrstuvyxwzABCDEFGHIGKLMNOPQRSTUVYXWZ!@#$%^&*()'))
                             ava = (cur.execute('SELECT us_ava FROM tributes WHERE id_tg = ?', [idtg]).fetchone())[0]
-                            cur.execute(f'UPDATE tributes SET us_nick = ? WHERE id = {win} ', ["WINNER"])
+#                            cur.execute(f'UPDATE tributes SET us_nick = ? WHERE id = {win} ', ["WINNER"])
                             cur.execute('INSERT INTO winners (id_tg, us_nick, us_name, password, us_ava) VALUES (?, ?, ?, ?, ?)', (idtg, us_nick, us_name, password, ava))
                             con.commit()
                             all.remove(win)
